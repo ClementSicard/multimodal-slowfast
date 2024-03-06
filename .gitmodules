@@ -1,0 +1,9 @@
+[submodule "auditory-slow-fast"]
+	path = auditory-slow-fast
+	url = git@github.com:ClementSicard/auditory-slow-fast.git
+[submodule "vsf"]
+	path = vsf
+	url = git@github.com:ClementSicard/slowfast.git
+[submodule "asf"]
+	path = asf
+	url = git@github.com:ClementSicard/auditory-slow-fast.git
