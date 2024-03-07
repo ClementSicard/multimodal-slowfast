@@ -1,8 +1,9 @@
 from mmsf import MultimodalSlowFast
+from asf.audio_slowfast.tools.run_net import load_config
 
 
 def main() -> None:
-    cfg = ""
+    cfg = load_config()
     model = MultimodalSlowFast(cfg=cfg)
 
 
