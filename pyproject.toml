@@ -9,6 +9,9 @@ readme = "README.md"
 python = "~3.10"
 pandas = "^2.2.1"
 notebook = "^7.1.1"
+torch = "^2.2.1"
+torchvision = "^0.17.1"
+torchaudio = "^2.2.1"
 
 
 [[tool.poetry.source]]
