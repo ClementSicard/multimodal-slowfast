@@ -1,2 +1,5 @@
 -r asf/requirements.txt
 -r vsf/requirements.txt
+
+opencv-python
+av

@@ -1,7 +1,7 @@
 TRAIN:
   ENABLE: True
   DATASET: EpicKitchens
-  BATCH_SIZE: 128
+  BATCH_SIZE: 4
   EVAL_PERIOD: 1
   CHECKPOINT_PERIOD: 1
   CHECKPOINT_FILE_PATH: models/asf/weights/SLOWFAST_VGG.pyth
@@ -97,7 +97,7 @@ EPICKITCHENS:
     NOUNS_EMBEDDINGS_FILE: data/epic-kitchens-100-annotations/nouns_embeddings.pkl
 
   AUGMENT:
-    ENABLE: True
+    ENABLE: False
     BALANCE: False
     FACTOR: 1.0001
 

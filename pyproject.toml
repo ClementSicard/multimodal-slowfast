@@ -16,6 +16,7 @@ fvcore = "^0.1.5.post20221221"
 loguru = "^0.7.2"
 simplejson = "^3.19.2"
 openai-clip = "^1.0.1"
+opencv-python = "^4.9.0.80"
 
 
 [[tool.poetry.source]]
