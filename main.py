@@ -1,6 +1,6 @@
 from loguru import logger
 from mmsf.model.mmsf import MultimodalSlowFast
-from mmsf.config import load_audio_config, load_video_config
+from mmsf.config.load import load_config
 from argparse import ArgumentParser, Namespace
 from typing import Dict, Any
 import json
@@ -10,52 +10,26 @@ from test import test_model
 from train import train_model
 
 
-C_vid, T_vid, H, W = 3, 32, 224, 224
-C_aud, T_aud, F, alpha = 3, 100, 128, 4
-
-
 def main(args: Dict[str, Any]) -> None:
-    audio_args = args.copy()
-    video_args = args.copy()
-    audio_args["cfg_file"] = args["audio_cfg"]
-    video_args["cfg_file"] = args["video_cfg"]
-    audio_cfg = load_audio_config(args=audio_args)
-    video_cfg = load_video_config(args=video_args)
+    cfg = load_config(args)
 
     if not torch.cuda.is_available():
         logger.warning("No GPU found. Running on CPU.")
-        audio_cfg.NUM_GPUS = 0
-        video_cfg.NUM_GPUS = 0
+        cfg.NUM_GPUS = 0
 
-        audio_cfg.WANDB.ENABLE = False
-        video_cfg.WANDB.ENABLE = False
+        cfg.WANDB.ENABLE = False
 
-        audio_cfg.DATA_LOADER.NUM_WORKERS = 4
-        video_cfg.DATA_LOADER.NUM_WORKERS = 4
+        cfg.DATA_LOADER.NUM_WORKERS = 4
 
-        audio_cfg.TRAIN.BATCH_SIZE = 2
-        video_cfg.TRAIN.BATCH_SIZE = 2
+        cfg.TRAIN.BATCH_SIZE = 2
 
-        audio_cfg.TEST.BATCH_SIZE = 1
-        video_cfg.TEST.BATCH_SIZE = 1
-
-    assert audio_cfg.TRAIN.BATCH_SIZE == video_cfg.TRAIN.BATCH_SIZE, (
-        f"Audio and video batch sizes should be the same but got {audio_cfg.TRAIN.BATCH_SIZE=}"
-        + f" and {video_cfg.TRAIN.BATCH_SIZE=} respectively."
-    )
-
-    assert audio_cfg.TEST.BATCH_SIZE == video_cfg.TEST.BATCH_SIZE, (
-        f"Audio and video batch sizes should be the same but got {audio_cfg.TEST.BATCH_SIZE=}"
-        + f" and {video_cfg.TEST.BATCH_SIZE=} respectively."
-    )
-
-    model = MultimodalSlowFast(audio_cfg=audio_cfg, video_cfg=video_cfg)
+        cfg.TEST.BATCH_SIZE = 1
 
     if args.get("train"):
-        train_model(model=model, audio_cfg=audio_cfg, video_cfg=video_cfg)
+        train_model(cfg=cfg)
 
     if args.get("test"):
-        test_model(model=model, audio_cfg=audio_cfg, video_cfg=video_cfg)
+        test_model(cfg=cfg)
 
     logger.success("Done! 🚢")
 
@@ -63,14 +37,10 @@ def main(args: Dict[str, Any]) -> None:
 def parse_args() -> Namespace:
     parser = ArgumentParser()
     parser.add_argument(
-        "--audio-cfg",
+        "-c",
+        "--config",
         type=str,
-        default="configs/asf/asf-original.yaml",
-    )
-    parser.add_argument(
-        "--video-cfg",
-        type=str,
-        default="configs/vsf/vsf-train.yaml",
+        default="configs/train-config.yaml",
     )
     parser.add_argument(
         "--train",

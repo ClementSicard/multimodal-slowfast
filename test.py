@@ -7,6 +7,6 @@ def test_epoch() -> None:
     pass
 
 
-def test_model(model: torch.nn.Module, audio_cfg: CfgNode, video_cfg: CfgNode) -> None:
+def test_model(cfg: CfgNode) -> None:
     logger.warning("Testing model.")
     pass
