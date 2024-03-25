@@ -1,3 +1,4 @@
+ASF_WEIGHTS_FILE := SLOWFAST_EPIC.pyth
 
 EK_REPO_NAME := epic-kitchens-100-annotations
 ES_REPO_NAME := epic-sounds-annotations
@@ -35,3 +36,9 @@ update:
 	@git submodule sync --recursive
 	@git submodule update --init --recursive
 	@git pull --recurse-submodules
+
+
+.PHONY: weights
+weights:
+	@mkdir -p weights/asf
+	@wget https://www.dropbox.com/s/cr0c6xdaggc2wzz/$(ASF_WEIGHTS_FILE) -O weights/asf/$(ASF_WEIGHTS_FILE)

@@ -1,5 +1,5 @@
 from loguru import logger
-from mmsf.mmsf import MultimodalSlowFast
+from mmsf.model.mmsf import MultimodalSlowFast
 from mmsf.config import load_audio_config, load_video_config
 from argparse import ArgumentParser, Namespace
 from typing import Dict, Any

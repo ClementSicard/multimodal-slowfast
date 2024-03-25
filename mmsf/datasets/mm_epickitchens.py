@@ -1,6 +1,7 @@
 import torch
 from fvcore.common.config import CfgNode
-from config import build_audio_dataset, build_video_dataset
+from mmsf.datasets.audio.asf_epickitchens import EpicKitchens as AudioEpicKitchens
+from mmsf.datasets.video.vsf_epickitchens import EpicKitchens as VideoEpicKitchens
 
 
 class MultimodalEpicKitchens(torch.utils.data.Dataset):
@@ -9,12 +10,8 @@ class MultimodalEpicKitchens(torch.utils.data.Dataset):
     """
 
     def __init__(self, audio_cfg: CfgNode, video_cfg: CfgNode, split: str) -> None:
-        self.audio_dataset = build_audio_dataset(
-            dataset_name=audio_cfg.TRAIN.DATASET_NAME,
-            cfg=audio_cfg,
-            mode=split,
-        )
-        self.video_dataset = build_video_dataset(cfg=video_cfg, mode=split)
+        self.audio_dataset = AudioEpicKitchens(cfg=audio_cfg, mode=split)
+        self.video_dataset = VideoEpicKitchens(cfg=video_cfg, mode=split)
 
         assert len(self.audio_dataset) == len(self.video_dataset), (
             "The audio and video datasets must have the same length but "
