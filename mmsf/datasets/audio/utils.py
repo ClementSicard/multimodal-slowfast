@@ -51,22 +51,22 @@ def pack_pathway_output(cfg, spectrogram):
         spectrogram_list (list): list of tensors with the dimension of
             `channel` x `num frames` x `num frequencies`.
     """
-    if cfg.MODEL.ARCH in cfg.MODEL.SINGLE_PATHWAY_ARCH:
+    if cfg.ASF.MODEL.ARCH in cfg.ASF.MODEL.SINGLE_PATHWAY_ARCH:
         spectrogram_list = [spectrogram]
-    elif cfg.MODEL.ARCH in cfg.MODEL.MULTI_PATHWAY_ARCH:
+    elif cfg.ASF.MODEL.ARCH in cfg.ASF.MODEL.MULTI_PATHWAY_ARCH:
         fast_pathway = spectrogram
         # Perform temporal sampling from the fast pathway.
         slow_pathway = torch.index_select(
             spectrogram,
             1,
-            torch.linspace(0, spectrogram.shape[1] - 1, spectrogram.shape[1] // cfg.SLOWFAST.ALPHA).long(),
+            torch.linspace(0, spectrogram.shape[1] - 1, spectrogram.shape[1] // cfg.ASF.SLOWFAST.ALPHA).long(),
         )
         spectrogram_list = [slow_pathway, fast_pathway]
     else:
         raise NotImplementedError(
             "Model arch {} is not in {}".format(
-                cfg.MODEL.ARCH,
-                cfg.MODEL.SINGLE_PATHWAY_ARCH + cfg.MODEL.MULTI_PATHWAY_ARCH,
+                cfg.ASF.MODEL.ARCH,
+                cfg.ASF.MODEL.SINGLE_PATHWAY_ARCH + cfg.ASF.MODEL.MULTI_PATHWAY_ARCH,
             )
         )
     return spectrogram_list
@@ -99,9 +99,9 @@ def loader_worker_init_fn(dataset):
 
 
 def get_num_spectrogram_frames(duration: float, cfg: CfgNode) -> int:
-    window_length_ms = cfg.AUDIO_DATA.WINDOW_LENGTH  # in milliseconds
-    hop_length_ms = cfg.AUDIO_DATA.HOP_LENGTH  # in milliseconds
-    sampling_rate = cfg.AUDIO_DATA.SAMPLING_RATE  # samples per second
+    window_length_ms = cfg.ASF.AUDIO_DATA.WINDOW_LENGTH  # in milliseconds
+    hop_length_ms = cfg.ASF.AUDIO_DATA.HOP_LENGTH  # in milliseconds
+    sampling_rate = cfg.ASF.AUDIO_DATA.SAMPLING_RATE  # samples per second
 
     # Convert window length and hop length to samples
     window_length_samples = int(window_length_ms / 1000 * sampling_rate)

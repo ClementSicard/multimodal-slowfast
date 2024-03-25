@@ -130,7 +130,7 @@ class AudioSlowFast(nn.Module):
         self.norm_module = get_norm(cfg)
         self.num_pathways = 2
         self._construct_network(cfg)
-        init_helper.init_weights(self, cfg.MODEL.FC_INIT_STD, cfg.RESNET.ZERO_INIT_FINAL_BN)
+        init_helper.init_weights(self, cfg.ASF.MODEL.FC_INIT_STD, cfg.ASF.RESNET.ZERO_INIT_FINAL_BN)
 
     def _construct_network(self, cfg):
         """
@@ -141,23 +141,23 @@ class AudioSlowFast(nn.Module):
             cfg (CfgNode): model building configs, details are in the
                 comments of the config file.
         """
-        assert cfg.MODEL.ARCH in _POOL1.keys()
-        pool_size = _POOL1[cfg.MODEL.ARCH]
+        assert cfg.ASF.MODEL.ARCH in _POOL1.keys()
+        pool_size = _POOL1[cfg.ASF.MODEL.ARCH]
         assert len({len(pool_size), self.num_pathways}) == 1
-        assert cfg.RESNET.DEPTH in _MODEL_STAGE_DEPTH.keys()
+        assert cfg.ASF.RESNET.DEPTH in _MODEL_STAGE_DEPTH.keys()
 
-        (d2, d3, d4, d5) = _MODEL_STAGE_DEPTH[cfg.RESNET.DEPTH]
+        (d2, d3, d4, d5) = _MODEL_STAGE_DEPTH[cfg.ASF.RESNET.DEPTH]
 
-        num_groups = cfg.RESNET.NUM_GROUPS
-        width_per_group = cfg.RESNET.WIDTH_PER_GROUP
+        num_groups = cfg.ASF.RESNET.NUM_GROUPS
+        width_per_group = cfg.ASF.RESNET.WIDTH_PER_GROUP
         dim_inner = num_groups * width_per_group
-        out_dim_ratio = cfg.SLOWFAST.BETA_INV // cfg.SLOWFAST.FUSION_CONV_CHANNEL_RATIO
+        out_dim_ratio = cfg.ASF.SLOWFAST.BETA_INV // cfg.ASF.SLOWFAST.FUSION_CONV_CHANNEL_RATIO
 
-        temp_kernel = _TEMPORAL_KERNEL_BASIS[cfg.MODEL.ARCH]
+        temp_kernel = _TEMPORAL_KERNEL_BASIS[cfg.ASF.MODEL.ARCH]
 
         self.s1 = stem_helper.AudioModelStem(
             dim_in=cfg.DATA.INPUT_CHANNEL_NUM_ASF,
-            dim_out=[width_per_group, width_per_group // cfg.SLOWFAST.BETA_INV],
+            dim_out=[width_per_group, width_per_group // cfg.ASF.SLOWFAST.BETA_INV],
             kernel=[temp_kernel[0][0] + [7], temp_kernel[0][1] + [7]],
             stride=[[2, 2]] * 2,
             padding=[
@@ -167,36 +167,36 @@ class AudioSlowFast(nn.Module):
             norm_module=self.norm_module,
         )
         self.s1_fuse = FuseFastToSlow(
-            width_per_group // cfg.SLOWFAST.BETA_INV,
-            cfg.SLOWFAST.FUSION_CONV_CHANNEL_RATIO,
-            cfg.SLOWFAST.FUSION_KERNEL_SZ,
-            cfg.SLOWFAST.ALPHA,
+            width_per_group // cfg.ASF.SLOWFAST.BETA_INV,
+            cfg.ASF.SLOWFAST.FUSION_CONV_CHANNEL_RATIO,
+            cfg.ASF.SLOWFAST.FUSION_KERNEL_SZ,
+            cfg.ASF.SLOWFAST.ALPHA,
             norm_module=self.norm_module,
         )
         self.s2 = resnet_helper.ResStage(
             dim_in=[
                 width_per_group + width_per_group // out_dim_ratio,
-                width_per_group // cfg.SLOWFAST.BETA_INV,
+                width_per_group // cfg.ASF.SLOWFAST.BETA_INV,
             ],
             dim_out=[
                 width_per_group * 4,
-                width_per_group * 4 // cfg.SLOWFAST.BETA_INV,
+                width_per_group * 4 // cfg.ASF.SLOWFAST.BETA_INV,
             ],
-            dim_inner=[dim_inner, dim_inner // cfg.SLOWFAST.BETA_INV],
+            dim_inner=[dim_inner, dim_inner // cfg.ASF.SLOWFAST.BETA_INV],
             temp_kernel_sizes=temp_kernel[1],
-            stride=cfg.RESNET.FREQUENCY_STRIDES[0],
+            stride=cfg.ASF.RESNET.FREQUENCY_STRIDES[0],
             num_blocks=[d2] * 2,
             num_groups=[num_groups] * 2,
-            num_block_temp_kernel=cfg.RESNET.NUM_BLOCK_TEMP_KERNEL[0],
-            trans_func_name=cfg.RESNET.TRANS_FUNC,
-            dilation=cfg.RESNET.FREQUENCY_DILATIONS[0],
+            num_block_temp_kernel=cfg.ASF.RESNET.NUM_BLOCK_TEMP_KERNEL[0],
+            trans_func_name=cfg.ASF.RESNET.TRANS_FUNC,
+            dilation=cfg.ASF.RESNET.FREQUENCY_DILATIONS[0],
             norm_module=self.norm_module,
         )
         self.s2_fuse = FuseFastToSlow(
-            width_per_group * 4 // cfg.SLOWFAST.BETA_INV,
-            cfg.SLOWFAST.FUSION_CONV_CHANNEL_RATIO,
-            cfg.SLOWFAST.FUSION_KERNEL_SZ,
-            cfg.SLOWFAST.ALPHA,
+            width_per_group * 4 // cfg.ASF.SLOWFAST.BETA_INV,
+            cfg.ASF.SLOWFAST.FUSION_CONV_CHANNEL_RATIO,
+            cfg.ASF.SLOWFAST.FUSION_KERNEL_SZ,
+            cfg.ASF.SLOWFAST.ALPHA,
             norm_module=self.norm_module,
         )
 
@@ -211,98 +211,100 @@ class AudioSlowFast(nn.Module):
         self.s3 = resnet_helper.ResStage(
             dim_in=[
                 width_per_group * 4 + width_per_group * 4 // out_dim_ratio,
-                width_per_group * 4 // cfg.SLOWFAST.BETA_INV,
+                width_per_group * 4 // cfg.ASF.SLOWFAST.BETA_INV,
             ],
             dim_out=[
                 width_per_group * 8,
-                width_per_group * 8 // cfg.SLOWFAST.BETA_INV,
+                width_per_group * 8 // cfg.ASF.SLOWFAST.BETA_INV,
             ],
-            dim_inner=[dim_inner * 2, dim_inner * 2 // cfg.SLOWFAST.BETA_INV],
+            dim_inner=[dim_inner * 2, dim_inner * 2 // cfg.ASF.SLOWFAST.BETA_INV],
             temp_kernel_sizes=temp_kernel[2],
-            stride=cfg.RESNET.FREQUENCY_STRIDES[1],
+            stride=cfg.ASF.RESNET.FREQUENCY_STRIDES[1],
             num_blocks=[d3] * 2,
             num_groups=[num_groups] * 2,
-            num_block_temp_kernel=cfg.RESNET.NUM_BLOCK_TEMP_KERNEL[1],
-            trans_func_name=cfg.RESNET.TRANS_FUNC,
-            dilation=cfg.RESNET.FREQUENCY_DILATIONS[1],
+            num_block_temp_kernel=cfg.ASF.RESNET.NUM_BLOCK_TEMP_KERNEL[1],
+            trans_func_name=cfg.ASF.RESNET.TRANS_FUNC,
+            dilation=cfg.ASF.RESNET.FREQUENCY_DILATIONS[1],
             norm_module=self.norm_module,
         )
         self.s3_fuse = FuseFastToSlow(
-            width_per_group * 8 // cfg.SLOWFAST.BETA_INV,
-            cfg.SLOWFAST.FUSION_CONV_CHANNEL_RATIO,
-            cfg.SLOWFAST.FUSION_KERNEL_SZ,
-            cfg.SLOWFAST.ALPHA,
+            width_per_group * 8 // cfg.ASF.SLOWFAST.BETA_INV,
+            cfg.ASF.SLOWFAST.FUSION_CONV_CHANNEL_RATIO,
+            cfg.ASF.SLOWFAST.FUSION_KERNEL_SZ,
+            cfg.ASF.SLOWFAST.ALPHA,
             norm_module=self.norm_module,
         )
 
         self.s4 = resnet_helper.ResStage(
             dim_in=[
                 width_per_group * 8 + width_per_group * 8 // out_dim_ratio,
-                width_per_group * 8 // cfg.SLOWFAST.BETA_INV,
+                width_per_group * 8 // cfg.ASF.SLOWFAST.BETA_INV,
             ],
             dim_out=[
                 width_per_group * 16,
-                width_per_group * 16 // cfg.SLOWFAST.BETA_INV,
+                width_per_group * 16 // cfg.ASF.SLOWFAST.BETA_INV,
             ],
-            dim_inner=[dim_inner * 4, dim_inner * 4 // cfg.SLOWFAST.BETA_INV],
+            dim_inner=[dim_inner * 4, dim_inner * 4 // cfg.ASF.SLOWFAST.BETA_INV],
             temp_kernel_sizes=temp_kernel[3],
-            stride=cfg.RESNET.FREQUENCY_STRIDES[2],
+            stride=cfg.ASF.RESNET.FREQUENCY_STRIDES[2],
             num_blocks=[d4] * 2,
             num_groups=[num_groups] * 2,
-            num_block_temp_kernel=cfg.RESNET.NUM_BLOCK_TEMP_KERNEL[2],
-            trans_func_name=cfg.RESNET.TRANS_FUNC,
-            dilation=cfg.RESNET.FREQUENCY_DILATIONS[2],
+            num_block_temp_kernel=cfg.ASF.RESNET.NUM_BLOCK_TEMP_KERNEL[2],
+            trans_func_name=cfg.ASF.RESNET.TRANS_FUNC,
+            dilation=cfg.ASF.RESNET.FREQUENCY_DILATIONS[2],
             norm_module=self.norm_module,
         )
         self.s4_fuse = FuseFastToSlow(
-            width_per_group * 16 // cfg.SLOWFAST.BETA_INV,
-            cfg.SLOWFAST.FUSION_CONV_CHANNEL_RATIO,
-            cfg.SLOWFAST.FUSION_KERNEL_SZ,
-            cfg.SLOWFAST.ALPHA,
+            width_per_group * 16 // cfg.ASF.SLOWFAST.BETA_INV,
+            cfg.ASF.SLOWFAST.FUSION_CONV_CHANNEL_RATIO,
+            cfg.ASF.SLOWFAST.FUSION_KERNEL_SZ,
+            cfg.ASF.SLOWFAST.ALPHA,
             norm_module=self.norm_module,
         )
 
         self.s5 = resnet_helper.ResStage(
             dim_in=[
                 width_per_group * 16 + width_per_group * 16 // out_dim_ratio,
-                width_per_group * 16 // cfg.SLOWFAST.BETA_INV,
+                width_per_group * 16 // cfg.ASF.SLOWFAST.BETA_INV,
             ],
             dim_out=[
                 width_per_group * 32,
-                width_per_group * 32 // cfg.SLOWFAST.BETA_INV,
+                width_per_group * 32 // cfg.ASF.SLOWFAST.BETA_INV,
             ],
-            dim_inner=[dim_inner * 8, dim_inner * 8 // cfg.SLOWFAST.BETA_INV],
+            dim_inner=[dim_inner * 8, dim_inner * 8 // cfg.ASF.SLOWFAST.BETA_INV],
             temp_kernel_sizes=temp_kernel[4],
-            stride=cfg.RESNET.FREQUENCY_STRIDES[3],
+            stride=cfg.ASF.RESNET.FREQUENCY_STRIDES[3],
             num_blocks=[d5] * 2,
             num_groups=[num_groups] * 2,
-            num_block_temp_kernel=cfg.RESNET.NUM_BLOCK_TEMP_KERNEL[3],
-            trans_func_name=cfg.RESNET.TRANS_FUNC,
-            dilation=cfg.RESNET.FREQUENCY_DILATIONS[3],
+            num_block_temp_kernel=cfg.ASF.RESNET.NUM_BLOCK_TEMP_KERNEL[3],
+            trans_func_name=cfg.ASF.RESNET.TRANS_FUNC,
+            dilation=cfg.ASF.RESNET.FREQUENCY_DILATIONS[3],
             norm_module=self.norm_module,
         )
 
         self.head = head_helper.ResNetBasicHead(
             dim_in=[
                 width_per_group * 32,
-                width_per_group * 32 // cfg.SLOWFAST.BETA_INV,
+                width_per_group * 32 // cfg.ASF.SLOWFAST.BETA_INV,
             ],
-            num_classes=cfg.MODEL.NUM_CLASSES if len(cfg.MODEL.NUM_CLASSES) > 1 else cfg.MODEL.NUM_CLASSES[0],
+            num_classes=(
+                cfg.ASF.MODEL.NUM_CLASSES if len(cfg.ASF.MODEL.NUM_CLASSES) > 1 else cfg.ASF.MODEL.NUM_CLASSES[0]
+            ),
             pool_size=[
                 [
-                    cfg.AUDIO_DATA.NUM_FRAMES // cfg.SLOWFAST.ALPHA // 4 // pool_size[0][0],
-                    cfg.AUDIO_DATA.NUM_FREQUENCIES // 32 // pool_size[0][1],
+                    cfg.ASF.AUDIO_DATA.NUM_FRAMES // cfg.ASF.SLOWFAST.ALPHA // 4 // pool_size[0][0],
+                    cfg.ASF.AUDIO_DATA.NUM_FREQUENCIES // 32 // pool_size[0][1],
                 ],
                 [
-                    cfg.AUDIO_DATA.NUM_FRAMES // 4 // pool_size[1][0],
-                    cfg.AUDIO_DATA.NUM_FREQUENCIES // 32 // pool_size[1][1],
+                    cfg.ASF.AUDIO_DATA.NUM_FRAMES // 4 // pool_size[1][0],
+                    cfg.ASF.AUDIO_DATA.NUM_FREQUENCIES // 32 // pool_size[1][1],
                 ],
             ],
-            dropout_rate=cfg.MODEL.DROPOUT_RATE,
-            act_func=cfg.MODEL.HEAD_ACT,
+            dropout_rate=cfg.ASF.MODEL.DROPOUT_RATE,
+            act_func=cfg.ASF.MODEL.HEAD_ACT,
         )
 
-    def forward(self, x, bboxes=None):
+    def forward(self, x):
         x = self.s1(x)
         x = self.s1_fuse(x)
         x = self.s2(x)
@@ -364,7 +366,7 @@ class ResNet(nn.Module):
         self.norm_module = get_norm(cfg)
         self.num_pathways = 1
         self._construct_network(cfg)
-        init_helper.init_weights(self, cfg.MODEL.FC_INIT_STD, cfg.RESNET.ZERO_INIT_FINAL_BN)
+        init_helper.init_weights(self, cfg.ASF.MODEL.FC_INIT_STD, cfg.ASF.RESNET.ZERO_INIT_FINAL_BN)
 
     def _construct_network(self, cfg):
         """
@@ -374,18 +376,18 @@ class ResNet(nn.Module):
             cfg (CfgNode): model building configs, details are in the
                 comments of the config file.
         """
-        assert cfg.MODEL.ARCH in _POOL1.keys()
-        pool_size = _POOL1[cfg.MODEL.ARCH]
+        assert cfg.ASF.MODEL.ARCH in _POOL1.keys()
+        pool_size = _POOL1[cfg.ASF.MODEL.ARCH]
         assert len({len(pool_size), self.num_pathways}) == 1
-        assert cfg.RESNET.DEPTH in _MODEL_STAGE_DEPTH.keys()
+        assert cfg.ASF.RESNET.DEPTH in _MODEL_STAGE_DEPTH.keys()
 
-        (d2, d3, d4, d5) = _MODEL_STAGE_DEPTH[cfg.RESNET.DEPTH]
+        (d2, d3, d4, d5) = _MODEL_STAGE_DEPTH[cfg.ASF.RESNET.DEPTH]
 
-        num_groups = cfg.RESNET.NUM_GROUPS
-        width_per_group = cfg.RESNET.WIDTH_PER_GROUP
+        num_groups = cfg.ASF.RESNET.NUM_GROUPS
+        width_per_group = cfg.ASF.RESNET.WIDTH_PER_GROUP
         dim_inner = num_groups * width_per_group
 
-        temp_kernel = _TEMPORAL_KERNEL_BASIS[cfg.MODEL.ARCH]
+        temp_kernel = _TEMPORAL_KERNEL_BASIS[cfg.ASF.MODEL.ARCH]
 
         self.s1 = stem_helper.AudioModelStem(
             dim_in=cfg.DATA.INPUT_CHANNEL_NUM_ASF,
@@ -401,14 +403,14 @@ class ResNet(nn.Module):
             dim_out=[width_per_group * 4],
             dim_inner=[dim_inner],
             temp_kernel_sizes=temp_kernel[1],
-            stride=cfg.RESNET.FREQUENCY_STRIDES[0],
+            stride=cfg.ASF.RESNET.FREQUENCY_STRIDES[0],
             num_blocks=[d2],
             num_groups=[num_groups],
-            num_block_temp_kernel=cfg.RESNET.NUM_BLOCK_TEMP_KERNEL[0],
-            trans_func_name=cfg.RESNET.TRANS_FUNC,
-            stride_1x1=cfg.RESNET.STRIDE_1X1,
-            inplace_relu=cfg.RESNET.INPLACE_RELU,
-            dilation=cfg.RESNET.FREQUENCY_DILATIONS[0],
+            num_block_temp_kernel=cfg.ASF.RESNET.NUM_BLOCK_TEMP_KERNEL[0],
+            trans_func_name=cfg.ASF.RESNET.TRANS_FUNC,
+            stride_1x1=cfg.ASF.RESNET.STRIDE_1X1,
+            inplace_relu=cfg.ASF.RESNET.INPLACE_RELU,
+            dilation=cfg.ASF.RESNET.FREQUENCY_DILATIONS[0],
             norm_module=self.norm_module,
         )
 
@@ -425,14 +427,14 @@ class ResNet(nn.Module):
             dim_out=[width_per_group * 8],
             dim_inner=[dim_inner * 2],
             temp_kernel_sizes=temp_kernel[2],
-            stride=cfg.RESNET.FREQUENCY_STRIDES[1],
+            stride=cfg.ASF.RESNET.FREQUENCY_STRIDES[1],
             num_blocks=[d3],
             num_groups=[num_groups],
-            num_block_temp_kernel=cfg.RESNET.NUM_BLOCK_TEMP_KERNEL[1],
-            trans_func_name=cfg.RESNET.TRANS_FUNC,
-            stride_1x1=cfg.RESNET.STRIDE_1X1,
-            inplace_relu=cfg.RESNET.INPLACE_RELU,
-            dilation=cfg.RESNET.FREQUENCY_DILATIONS[1],
+            num_block_temp_kernel=cfg.ASF.RESNET.NUM_BLOCK_TEMP_KERNEL[1],
+            trans_func_name=cfg.ASF.RESNET.TRANS_FUNC,
+            stride_1x1=cfg.ASF.RESNET.STRIDE_1X1,
+            inplace_relu=cfg.ASF.RESNET.INPLACE_RELU,
+            dilation=cfg.ASF.RESNET.FREQUENCY_DILATIONS[1],
             norm_module=self.norm_module,
         )
 
@@ -441,14 +443,14 @@ class ResNet(nn.Module):
             dim_out=[width_per_group * 16],
             dim_inner=[dim_inner * 4],
             temp_kernel_sizes=temp_kernel[3],
-            stride=cfg.RESNET.FREQUENCY_STRIDES[2],
+            stride=cfg.ASF.RESNET.FREQUENCY_STRIDES[2],
             num_blocks=[d4],
             num_groups=[num_groups],
-            num_block_temp_kernel=cfg.RESNET.NUM_BLOCK_TEMP_KERNEL[2],
-            trans_func_name=cfg.RESNET.TRANS_FUNC,
-            stride_1x1=cfg.RESNET.STRIDE_1X1,
-            inplace_relu=cfg.RESNET.INPLACE_RELU,
-            dilation=cfg.RESNET.FREQUENCY_DILATIONS[2],
+            num_block_temp_kernel=cfg.ASF.RESNET.NUM_BLOCK_TEMP_KERNEL[2],
+            trans_func_name=cfg.ASF.RESNET.TRANS_FUNC,
+            stride_1x1=cfg.ASF.RESNET.STRIDE_1X1,
+            inplace_relu=cfg.ASF.RESNET.INPLACE_RELU,
+            dilation=cfg.ASF.RESNET.FREQUENCY_DILATIONS[2],
             norm_module=self.norm_module,
         )
 
@@ -457,28 +459,30 @@ class ResNet(nn.Module):
             dim_out=[width_per_group * 32],
             dim_inner=[dim_inner * 8],
             temp_kernel_sizes=temp_kernel[4],
-            stride=cfg.RESNET.FREQUENCY_STRIDES[3],
+            stride=cfg.ASF.RESNET.FREQUENCY_STRIDES[3],
             num_blocks=[d5],
             num_groups=[num_groups],
-            num_block_temp_kernel=cfg.RESNET.NUM_BLOCK_TEMP_KERNEL[3],
-            trans_func_name=cfg.RESNET.TRANS_FUNC,
-            stride_1x1=cfg.RESNET.STRIDE_1X1,
-            inplace_relu=cfg.RESNET.INPLACE_RELU,
-            dilation=cfg.RESNET.FREQUENCY_DILATIONS[3],
+            num_block_temp_kernel=cfg.ASF.RESNET.NUM_BLOCK_TEMP_KERNEL[3],
+            trans_func_name=cfg.ASF.RESNET.TRANS_FUNC,
+            stride_1x1=cfg.ASF.RESNET.STRIDE_1X1,
+            inplace_relu=cfg.ASF.RESNET.INPLACE_RELU,
+            dilation=cfg.ASF.RESNET.FREQUENCY_DILATIONS[3],
             norm_module=self.norm_module,
         )
 
         self.head = head_helper.ResNetBasicHead(
             dim_in=[width_per_group * 32],
-            num_classes=cfg.MODEL.NUM_CLASSES if len(cfg.MODEL.NUM_CLASSES) > 1 else cfg.MODEL.NUM_CLASSES[0],
+            num_classes=(
+                cfg.ASF.MODEL.NUM_CLASSES if len(cfg.ASF.MODEL.NUM_CLASSES) > 1 else cfg.ASF.MODEL.NUM_CLASSES[0]
+            ),
             pool_size=[
                 [
-                    cfg.AUDIO_DATA.NUM_FRAMES // 4 // pool_size[0][0],
-                    cfg.AUDIO_DATA.NUM_FREQUENCIES // 32 // pool_size[0][1],
+                    cfg.ASF.AUDIO_DATA.NUM_FRAMES // 4 // pool_size[0][0],
+                    cfg.ASF.AUDIO_DATA.NUM_FREQUENCIES // 32 // pool_size[0][1],
                 ]
             ],
-            dropout_rate=cfg.MODEL.DROPOUT_RATE,
-            act_func=cfg.MODEL.HEAD_ACT,
+            dropout_rate=cfg.ASF.MODEL.DROPOUT_RATE,
+            act_func=cfg.ASF.MODEL.HEAD_ACT,
         )
 
     def forward(self, x, bboxes=None):

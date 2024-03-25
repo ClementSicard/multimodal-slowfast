@@ -8,7 +8,7 @@ class EpicKitchensAudioRecord(AudioRecord):
         self.cfg = cfg
         self._index = str(tup[0])
         self._series = tup[1]
-        self._sampling_rate = cfg.AUDIO_DATA.SAMPLING_RATE
+        self._sampling_rate = cfg.ASF.AUDIO_DATA.SAMPLING_RATE
 
     @property
     def participant(self):

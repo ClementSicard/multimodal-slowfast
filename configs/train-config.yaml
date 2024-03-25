@@ -75,6 +75,13 @@ VSF:
     GROUP: [[1, 1], [1, 1], [1, 1], [1, 1]]
     INSTANTIATION: dot_product
 
+  MODEL:
+    NUM_CLASSES: [97, 300]
+    ARCH: slowfast
+    MODEL_NAME: SlowFast
+    LOSS_FUNC: cross_entropy
+    DROPOUT_RATE: 0.5
+
 BN:
   USE_PRECISE_STATS: True
   FREEZE: True

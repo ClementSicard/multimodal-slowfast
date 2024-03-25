@@ -141,11 +141,10 @@ class SlowFast(nn.Module):
                 comments of the config file.
         """
         super(SlowFast, self).__init__()
-        self.enable_detection = cfg.DETECTION.ENABLE
         self.num_pathways = 2
         logger.warning(f"Batch size: {cfg.TRAIN.BATCH_SIZE if cfg.TRAIN.ENABLE else cfg.TEST.BATCH_SIZE}")
         self._construct_network(cfg)
-        init_helper.init_weights(self, cfg.MODEL.FC_INIT_STD, cfg.RESNET.ZERO_INIT_FINAL_BN)
+        init_helper.init_weights(self, cfg.VSF.MODEL.FC_INIT_STD, cfg.VSF.RESNET.ZERO_INIT_FINAL_BN)
 
     def _construct_network(self, cfg):
         """
@@ -156,23 +155,23 @@ class SlowFast(nn.Module):
             cfg (CfgNode): model building configs, details are in the
                 comments of the config file.
         """
-        assert cfg.MODEL.ARCH in _POOL1.keys()
-        pool_size = _POOL1[cfg.MODEL.ARCH]
+        assert cfg.VSF.MODEL.ARCH in _POOL1.keys()
+        pool_size = _POOL1[cfg.VSF.MODEL.ARCH]
         assert len({len(pool_size), self.num_pathways}) == 1
-        assert cfg.RESNET.DEPTH in _MODEL_STAGE_DEPTH.keys()
+        assert cfg.VSF.RESNET.DEPTH in _MODEL_STAGE_DEPTH.keys()
 
-        (d2, d3, d4, d5) = _MODEL_STAGE_DEPTH[cfg.RESNET.DEPTH]
+        (d2, d3, d4, d5) = _MODEL_STAGE_DEPTH[cfg.VSF.RESNET.DEPTH]
 
-        num_groups = cfg.RESNET.NUM_GROUPS
-        width_per_group = cfg.RESNET.WIDTH_PER_GROUP
+        num_groups = cfg.VSF.RESNET.NUM_GROUPS
+        width_per_group = cfg.VSF.RESNET.WIDTH_PER_GROUP
         dim_inner = num_groups * width_per_group
-        out_dim_ratio = cfg.SLOWFAST.BETA_INV // cfg.SLOWFAST.FUSION_CONV_CHANNEL_RATIO
+        out_dim_ratio = cfg.VSF.SLOWFAST.BETA_INV // cfg.VSF.SLOWFAST.FUSION_CONV_CHANNEL_RATIO
 
-        temp_kernel = _TEMPORAL_KERNEL_BASIS[cfg.MODEL.ARCH]
+        temp_kernel = _TEMPORAL_KERNEL_BASIS[cfg.VSF.MODEL.ARCH]
 
         self.s1 = stem_helper.VideoModelStem(
-            dim_in=cfg.DATA.INPUT_CHANNEL_NUM,
-            dim_out=[width_per_group, width_per_group // cfg.SLOWFAST.BETA_INV],
+            dim_in=cfg.DATA.INPUT_CHANNEL_NUM_VSF,
+            dim_out=[width_per_group, width_per_group // cfg.VSF.SLOWFAST.BETA_INV],
             kernel=[temp_kernel[0][0] + [7, 7], temp_kernel[0][1] + [7, 7]],
             stride=[[1, 2, 2]] * 2,
             padding=[
@@ -181,39 +180,39 @@ class SlowFast(nn.Module):
             ],
         )
         self.s1_fuse = FuseFastToSlow(
-            width_per_group // cfg.SLOWFAST.BETA_INV,
-            cfg.SLOWFAST.FUSION_CONV_CHANNEL_RATIO,
-            cfg.SLOWFAST.FUSION_KERNEL_SZ,
-            cfg.SLOWFAST.ALPHA,
+            width_per_group // cfg.VSF.SLOWFAST.BETA_INV,
+            cfg.VSF.SLOWFAST.FUSION_CONV_CHANNEL_RATIO,
+            cfg.VSF.SLOWFAST.FUSION_KERNEL_SZ,
+            cfg.VSF.SLOWFAST.ALPHA,
         )
 
         self.s2 = resnet_helper.ResStage(
             dim_in=[
                 width_per_group + width_per_group // out_dim_ratio,
-                width_per_group // cfg.SLOWFAST.BETA_INV,
+                width_per_group // cfg.VSF.SLOWFAST.BETA_INV,
             ],
             dim_out=[
                 width_per_group * 4,
-                width_per_group * 4 // cfg.SLOWFAST.BETA_INV,
+                width_per_group * 4 // cfg.VSF.SLOWFAST.BETA_INV,
             ],
-            dim_inner=[dim_inner, dim_inner // cfg.SLOWFAST.BETA_INV],
+            dim_inner=[dim_inner, dim_inner // cfg.VSF.SLOWFAST.BETA_INV],
             temp_kernel_sizes=temp_kernel[1],
-            stride=cfg.RESNET.SPATIAL_STRIDES[0],
+            stride=cfg.VSF.RESNET.SPATIAL_STRIDES[0],
             num_blocks=[d2] * 2,
             num_groups=[num_groups] * 2,
-            num_block_temp_kernel=cfg.RESNET.NUM_BLOCK_TEMP_KERNEL[0],
-            nonlocal_inds=cfg.NONLOCAL.LOCATION[0],
-            nonlocal_group=cfg.NONLOCAL.GROUP[0],
-            nonlocal_pool=cfg.NONLOCAL.POOL[0],
-            instantiation=cfg.NONLOCAL.INSTANTIATION,
-            trans_func_name=cfg.RESNET.TRANS_FUNC,
-            dilation=cfg.RESNET.SPATIAL_DILATIONS[0],
+            num_block_temp_kernel=cfg.VSF.RESNET.NUM_BLOCK_TEMP_KERNEL[0],
+            nonlocal_inds=cfg.VSF.NONLOCAL.LOCATION[0],
+            nonlocal_group=cfg.VSF.NONLOCAL.GROUP[0],
+            nonlocal_pool=cfg.VSF.NONLOCAL.POOL[0],
+            instantiation=cfg.VSF.NONLOCAL.INSTANTIATION,
+            trans_func_name=cfg.VSF.RESNET.TRANS_FUNC,
+            dilation=cfg.VSF.RESNET.SPATIAL_DILATIONS[0],
         )
         self.s2_fuse = FuseFastToSlow(
-            width_per_group * 4 // cfg.SLOWFAST.BETA_INV,
-            cfg.SLOWFAST.FUSION_CONV_CHANNEL_RATIO,
-            cfg.SLOWFAST.FUSION_KERNEL_SZ,
-            cfg.SLOWFAST.ALPHA,
+            width_per_group * 4 // cfg.VSF.SLOWFAST.BETA_INV,
+            cfg.VSF.SLOWFAST.FUSION_CONV_CHANNEL_RATIO,
+            cfg.VSF.SLOWFAST.FUSION_KERNEL_SZ,
+            cfg.VSF.SLOWFAST.ALPHA,
         )
 
         for pathway in range(self.num_pathways):
@@ -227,93 +226,93 @@ class SlowFast(nn.Module):
         self.s3 = resnet_helper.ResStage(
             dim_in=[
                 width_per_group * 4 + width_per_group * 4 // out_dim_ratio,
-                width_per_group * 4 // cfg.SLOWFAST.BETA_INV,
+                width_per_group * 4 // cfg.VSF.SLOWFAST.BETA_INV,
             ],
             dim_out=[
                 width_per_group * 8,
-                width_per_group * 8 // cfg.SLOWFAST.BETA_INV,
+                width_per_group * 8 // cfg.VSF.SLOWFAST.BETA_INV,
             ],
-            dim_inner=[dim_inner * 2, dim_inner * 2 // cfg.SLOWFAST.BETA_INV],
+            dim_inner=[dim_inner * 2, dim_inner * 2 // cfg.VSF.SLOWFAST.BETA_INV],
             temp_kernel_sizes=temp_kernel[2],
-            stride=cfg.RESNET.SPATIAL_STRIDES[1],
+            stride=cfg.VSF.RESNET.SPATIAL_STRIDES[1],
             num_blocks=[d3] * 2,
             num_groups=[num_groups] * 2,
-            num_block_temp_kernel=cfg.RESNET.NUM_BLOCK_TEMP_KERNEL[1],
-            nonlocal_inds=cfg.NONLOCAL.LOCATION[1],
-            nonlocal_group=cfg.NONLOCAL.GROUP[1],
-            nonlocal_pool=cfg.NONLOCAL.POOL[1],
-            instantiation=cfg.NONLOCAL.INSTANTIATION,
-            trans_func_name=cfg.RESNET.TRANS_FUNC,
-            dilation=cfg.RESNET.SPATIAL_DILATIONS[1],
+            num_block_temp_kernel=cfg.VSF.RESNET.NUM_BLOCK_TEMP_KERNEL[1],
+            nonlocal_inds=cfg.VSF.NONLOCAL.LOCATION[1],
+            nonlocal_group=cfg.VSF.NONLOCAL.GROUP[1],
+            nonlocal_pool=cfg.VSF.NONLOCAL.POOL[1],
+            instantiation=cfg.VSF.NONLOCAL.INSTANTIATION,
+            trans_func_name=cfg.VSF.RESNET.TRANS_FUNC,
+            dilation=cfg.VSF.RESNET.SPATIAL_DILATIONS[1],
         )
         self.s3_fuse = FuseFastToSlow(
-            width_per_group * 8 // cfg.SLOWFAST.BETA_INV,
-            cfg.SLOWFAST.FUSION_CONV_CHANNEL_RATIO,
-            cfg.SLOWFAST.FUSION_KERNEL_SZ,
-            cfg.SLOWFAST.ALPHA,
+            width_per_group * 8 // cfg.VSF.SLOWFAST.BETA_INV,
+            cfg.VSF.SLOWFAST.FUSION_CONV_CHANNEL_RATIO,
+            cfg.VSF.SLOWFAST.FUSION_KERNEL_SZ,
+            cfg.VSF.SLOWFAST.ALPHA,
         )
 
         self.s4 = resnet_helper.ResStage(
             dim_in=[
                 width_per_group * 8 + width_per_group * 8 // out_dim_ratio,
-                width_per_group * 8 // cfg.SLOWFAST.BETA_INV,
+                width_per_group * 8 // cfg.VSF.SLOWFAST.BETA_INV,
             ],
             dim_out=[
                 width_per_group * 16,
-                width_per_group * 16 // cfg.SLOWFAST.BETA_INV,
+                width_per_group * 16 // cfg.VSF.SLOWFAST.BETA_INV,
             ],
-            dim_inner=[dim_inner * 4, dim_inner * 4 // cfg.SLOWFAST.BETA_INV],
+            dim_inner=[dim_inner * 4, dim_inner * 4 // cfg.VSF.SLOWFAST.BETA_INV],
             temp_kernel_sizes=temp_kernel[3],
-            stride=cfg.RESNET.SPATIAL_STRIDES[2],
+            stride=cfg.VSF.RESNET.SPATIAL_STRIDES[2],
             num_blocks=[d4] * 2,
             num_groups=[num_groups] * 2,
-            num_block_temp_kernel=cfg.RESNET.NUM_BLOCK_TEMP_KERNEL[2],
-            nonlocal_inds=cfg.NONLOCAL.LOCATION[2],
-            nonlocal_group=cfg.NONLOCAL.GROUP[2],
-            nonlocal_pool=cfg.NONLOCAL.POOL[2],
-            instantiation=cfg.NONLOCAL.INSTANTIATION,
-            trans_func_name=cfg.RESNET.TRANS_FUNC,
-            dilation=cfg.RESNET.SPATIAL_DILATIONS[2],
+            num_block_temp_kernel=cfg.VSF.RESNET.NUM_BLOCK_TEMP_KERNEL[2],
+            nonlocal_inds=cfg.VSF.NONLOCAL.LOCATION[2],
+            nonlocal_group=cfg.VSF.NONLOCAL.GROUP[2],
+            nonlocal_pool=cfg.VSF.NONLOCAL.POOL[2],
+            instantiation=cfg.VSF.NONLOCAL.INSTANTIATION,
+            trans_func_name=cfg.VSF.RESNET.TRANS_FUNC,
+            dilation=cfg.VSF.RESNET.SPATIAL_DILATIONS[2],
         )
         self.s4_fuse = FuseFastToSlow(
-            width_per_group * 16 // cfg.SLOWFAST.BETA_INV,
-            cfg.SLOWFAST.FUSION_CONV_CHANNEL_RATIO,
-            cfg.SLOWFAST.FUSION_KERNEL_SZ,
-            cfg.SLOWFAST.ALPHA,
+            width_per_group * 16 // cfg.VSF.SLOWFAST.BETA_INV,
+            cfg.VSF.SLOWFAST.FUSION_CONV_CHANNEL_RATIO,
+            cfg.VSF.SLOWFAST.FUSION_KERNEL_SZ,
+            cfg.VSF.SLOWFAST.ALPHA,
         )
 
         self.s5 = resnet_helper.ResStage(
             dim_in=[
                 width_per_group * 16 + width_per_group * 16 // out_dim_ratio,
-                width_per_group * 16 // cfg.SLOWFAST.BETA_INV,
+                width_per_group * 16 // cfg.VSF.SLOWFAST.BETA_INV,
             ],
             dim_out=[
                 width_per_group * 32,
-                width_per_group * 32 // cfg.SLOWFAST.BETA_INV,
+                width_per_group * 32 // cfg.VSF.SLOWFAST.BETA_INV,
             ],
-            dim_inner=[dim_inner * 8, dim_inner * 8 // cfg.SLOWFAST.BETA_INV],
+            dim_inner=[dim_inner * 8, dim_inner * 8 // cfg.VSF.SLOWFAST.BETA_INV],
             temp_kernel_sizes=temp_kernel[4],
-            stride=cfg.RESNET.SPATIAL_STRIDES[3],
+            stride=cfg.VSF.RESNET.SPATIAL_STRIDES[3],
             num_blocks=[d5] * 2,
             num_groups=[num_groups] * 2,
-            num_block_temp_kernel=cfg.RESNET.NUM_BLOCK_TEMP_KERNEL[3],
-            nonlocal_inds=cfg.NONLOCAL.LOCATION[3],
-            nonlocal_group=cfg.NONLOCAL.GROUP[3],
-            nonlocal_pool=cfg.NONLOCAL.POOL[3],
-            instantiation=cfg.NONLOCAL.INSTANTIATION,
-            trans_func_name=cfg.RESNET.TRANS_FUNC,
-            dilation=cfg.RESNET.SPATIAL_DILATIONS[3],
+            num_block_temp_kernel=cfg.VSF.RESNET.NUM_BLOCK_TEMP_KERNEL[3],
+            nonlocal_inds=cfg.VSF.NONLOCAL.LOCATION[3],
+            nonlocal_group=cfg.VSF.NONLOCAL.GROUP[3],
+            nonlocal_pool=cfg.VSF.NONLOCAL.POOL[3],
+            instantiation=cfg.VSF.NONLOCAL.INSTANTIATION,
+            trans_func_name=cfg.VSF.RESNET.TRANS_FUNC,
+            dilation=cfg.VSF.RESNET.SPATIAL_DILATIONS[3],
         )
 
         self.head = head_helper.ResNetBasicHead(
             dim_in=[
                 width_per_group * 32,
-                width_per_group * 32 // cfg.SLOWFAST.BETA_INV,
+                width_per_group * 32 // cfg.VSF.SLOWFAST.BETA_INV,
             ],
-            num_classes=cfg.MODEL.NUM_CLASSES,
+            num_classes=cfg.VSF.MODEL.NUM_CLASSES,
             pool_size=[
                 [
-                    cfg.DATA.NUM_FRAMES // cfg.SLOWFAST.ALPHA // pool_size[0][0],
+                    cfg.DATA.NUM_FRAMES // cfg.VSF.SLOWFAST.ALPHA // pool_size[0][0],
                     cfg.DATA.CROP_SIZE // 32 // pool_size[0][1],
                     cfg.DATA.CROP_SIZE // 32 // pool_size[0][2],
                 ],
@@ -323,10 +322,10 @@ class SlowFast(nn.Module):
                     cfg.DATA.CROP_SIZE // 32 // pool_size[1][2],
                 ],
             ],
-            dropout_rate=cfg.MODEL.DROPOUT_RATE,
+            dropout_rate=cfg.VSF.MODEL.DROPOUT_RATE,
         )
 
-    def forward(self, x, bboxes=None):
+    def forward(self, x):
         logger.debug(f"S1: {x.shape if isinstance(x, torch.Tensor) else [i.shape for i in x]}")
         x = self.s1(x)
         logger.debug(f"S1_fuse: {x.shape if isinstance(x, torch.Tensor) else [i.shape for i in x]}")
@@ -350,10 +349,8 @@ class SlowFast(nn.Module):
         logger.debug(f"S5: {x.shape if isinstance(x, torch.Tensor) else [i.shape for i in x]}")
         x = self.s5(x)
         logger.debug(f"Head: {x.shape if isinstance(x, torch.Tensor) else [i.shape for i in x]}")
-        if self.enable_detection:
-            x = self.head(x, bboxes)
-        else:
-            x = self.head(x)
+
+        x = self.head(x)
         logger.debug(f"Final output: {x.shape if isinstance(x, torch.Tensor) else [i.shape for i in x]}")
         return x
 
@@ -397,10 +394,9 @@ class ResNet(nn.Module):
                 comments of the config file.
         """
         super(ResNet, self).__init__()
-        self.enable_detection = cfg.DETECTION.ENABLE
         self.num_pathways = 1
         self._construct_network(cfg)
-        init_helper.init_weights(self, cfg.MODEL.FC_INIT_STD, cfg.RESNET.ZERO_INIT_FINAL_BN)
+        init_helper.init_weights(self, cfg.VSF.MODEL.FC_INIT_STD, cfg.VSF.RESNET.ZERO_INIT_FINAL_BN)
 
     def _construct_network(self, cfg):
         """
@@ -410,21 +406,21 @@ class ResNet(nn.Module):
             cfg (CfgNode): model building configs, details are in the
                 comments of the config file.
         """
-        assert cfg.MODEL.ARCH in _POOL1.keys()
-        pool_size = _POOL1[cfg.MODEL.ARCH]
+        assert cfg.VSF.MODEL.ARCH in _POOL1.keys()
+        pool_size = _POOL1[cfg.VSF.MODEL.ARCH]
         assert len({len(pool_size), self.num_pathways}) == 1
-        assert cfg.RESNET.DEPTH in _MODEL_STAGE_DEPTH.keys()
+        assert cfg.VSF.RESNET.DEPTH in _MODEL_STAGE_DEPTH.keys()
 
-        (d2, d3, d4, d5) = _MODEL_STAGE_DEPTH[cfg.RESNET.DEPTH]
+        (d2, d3, d4, d5) = _MODEL_STAGE_DEPTH[cfg.VSF.RESNET.DEPTH]
 
-        num_groups = cfg.RESNET.NUM_GROUPS
-        width_per_group = cfg.RESNET.WIDTH_PER_GROUP
+        num_groups = cfg.VSF.RESNET.NUM_GROUPS
+        width_per_group = cfg.VSF.RESNET.WIDTH_PER_GROUP
         dim_inner = num_groups * width_per_group
 
-        temp_kernel = _TEMPORAL_KERNEL_BASIS[cfg.MODEL.ARCH]
+        temp_kernel = _TEMPORAL_KERNEL_BASIS[cfg.VSF.MODEL.ARCH]
 
         self.s1 = stem_helper.VideoModelStem(
-            dim_in=cfg.DATA.INPUT_CHANNEL_NUM,
+            dim_in=cfg.DATA.INPUT_CHANNEL_NUM_VSF,
             dim_out=[width_per_group],
             kernel=[temp_kernel[0][0] + [7, 7]],
             stride=[[1, 2, 2]],
@@ -436,18 +432,18 @@ class ResNet(nn.Module):
             dim_out=[width_per_group * 4],
             dim_inner=[dim_inner],
             temp_kernel_sizes=temp_kernel[1],
-            stride=cfg.RESNET.SPATIAL_STRIDES[0],
+            stride=cfg.VSF.RESNET.SPATIAL_STRIDES[0],
             num_blocks=[d2],
             num_groups=[num_groups],
-            num_block_temp_kernel=cfg.RESNET.NUM_BLOCK_TEMP_KERNEL[0],
-            nonlocal_inds=cfg.NONLOCAL.LOCATION[0],
-            nonlocal_group=cfg.NONLOCAL.GROUP[0],
-            nonlocal_pool=cfg.NONLOCAL.POOL[0],
-            instantiation=cfg.NONLOCAL.INSTANTIATION,
-            trans_func_name=cfg.RESNET.TRANS_FUNC,
-            stride_1x1=cfg.RESNET.STRIDE_1X1,
-            inplace_relu=cfg.RESNET.INPLACE_RELU,
-            dilation=cfg.RESNET.SPATIAL_DILATIONS[0],
+            num_block_temp_kernel=cfg.VSF.RESNET.NUM_BLOCK_TEMP_KERNEL[0],
+            nonlocal_inds=cfg.VSF.NONLOCAL.LOCATION[0],
+            nonlocal_group=cfg.VSF.NONLOCAL.GROUP[0],
+            nonlocal_pool=cfg.VSF.NONLOCAL.POOL[0],
+            instantiation=cfg.VSF.NONLOCAL.INSTANTIATION,
+            trans_func_name=cfg.VSF.RESNET.TRANS_FUNC,
+            stride_1x1=cfg.VSF.RESNET.STRIDE_1X1,
+            inplace_relu=cfg.VSF.RESNET.INPLACE_RELU,
+            dilation=cfg.VSF.RESNET.SPATIAL_DILATIONS[0],
         )
 
         for pathway in range(self.num_pathways):
@@ -463,18 +459,18 @@ class ResNet(nn.Module):
             dim_out=[width_per_group * 8],
             dim_inner=[dim_inner * 2],
             temp_kernel_sizes=temp_kernel[2],
-            stride=cfg.RESNET.SPATIAL_STRIDES[1],
+            stride=cfg.VSF.RESNET.SPATIAL_STRIDES[1],
             num_blocks=[d3],
             num_groups=[num_groups],
-            num_block_temp_kernel=cfg.RESNET.NUM_BLOCK_TEMP_KERNEL[1],
-            nonlocal_inds=cfg.NONLOCAL.LOCATION[1],
-            nonlocal_group=cfg.NONLOCAL.GROUP[1],
-            nonlocal_pool=cfg.NONLOCAL.POOL[1],
-            instantiation=cfg.NONLOCAL.INSTANTIATION,
-            trans_func_name=cfg.RESNET.TRANS_FUNC,
-            stride_1x1=cfg.RESNET.STRIDE_1X1,
-            inplace_relu=cfg.RESNET.INPLACE_RELU,
-            dilation=cfg.RESNET.SPATIAL_DILATIONS[1],
+            num_block_temp_kernel=cfg.VSF.RESNET.NUM_BLOCK_TEMP_KERNEL[1],
+            nonlocal_inds=cfg.VSF.NONLOCAL.LOCATION[1],
+            nonlocal_group=cfg.VSF.NONLOCAL.GROUP[1],
+            nonlocal_pool=cfg.VSF.NONLOCAL.POOL[1],
+            instantiation=cfg.VSF.NONLOCAL.INSTANTIATION,
+            trans_func_name=cfg.VSF.RESNET.TRANS_FUNC,
+            stride_1x1=cfg.VSF.RESNET.STRIDE_1X1,
+            inplace_relu=cfg.VSF.RESNET.INPLACE_RELU,
+            dilation=cfg.VSF.RESNET.SPATIAL_DILATIONS[1],
         )
 
         self.s4 = resnet_helper.ResStage(
@@ -482,18 +478,18 @@ class ResNet(nn.Module):
             dim_out=[width_per_group * 16],
             dim_inner=[dim_inner * 4],
             temp_kernel_sizes=temp_kernel[3],
-            stride=cfg.RESNET.SPATIAL_STRIDES[2],
+            stride=cfg.VSF.RESNET.SPATIAL_STRIDES[2],
             num_blocks=[d4],
             num_groups=[num_groups],
-            num_block_temp_kernel=cfg.RESNET.NUM_BLOCK_TEMP_KERNEL[2],
-            nonlocal_inds=cfg.NONLOCAL.LOCATION[2],
-            nonlocal_group=cfg.NONLOCAL.GROUP[2],
-            nonlocal_pool=cfg.NONLOCAL.POOL[2],
-            instantiation=cfg.NONLOCAL.INSTANTIATION,
-            trans_func_name=cfg.RESNET.TRANS_FUNC,
-            stride_1x1=cfg.RESNET.STRIDE_1X1,
-            inplace_relu=cfg.RESNET.INPLACE_RELU,
-            dilation=cfg.RESNET.SPATIAL_DILATIONS[2],
+            num_block_temp_kernel=cfg.VSF.RESNET.NUM_BLOCK_TEMP_KERNEL[2],
+            nonlocal_inds=cfg.VSF.NONLOCAL.LOCATION[2],
+            nonlocal_group=cfg.VSF.NONLOCAL.GROUP[2],
+            nonlocal_pool=cfg.VSF.NONLOCAL.POOL[2],
+            instantiation=cfg.VSF.NONLOCAL.INSTANTIATION,
+            trans_func_name=cfg.VSF.RESNET.TRANS_FUNC,
+            stride_1x1=cfg.VSF.RESNET.STRIDE_1X1,
+            inplace_relu=cfg.VSF.RESNET.INPLACE_RELU,
+            dilation=cfg.VSF.RESNET.SPATIAL_DILATIONS[2],
         )
 
         self.s5 = resnet_helper.ResStage(
@@ -501,44 +497,32 @@ class ResNet(nn.Module):
             dim_out=[width_per_group * 32],
             dim_inner=[dim_inner * 8],
             temp_kernel_sizes=temp_kernel[4],
-            stride=cfg.RESNET.SPATIAL_STRIDES[3],
+            stride=cfg.VSF.RESNET.SPATIAL_STRIDES[3],
             num_blocks=[d5],
             num_groups=[num_groups],
-            num_block_temp_kernel=cfg.RESNET.NUM_BLOCK_TEMP_KERNEL[3],
-            nonlocal_inds=cfg.NONLOCAL.LOCATION[3],
-            nonlocal_group=cfg.NONLOCAL.GROUP[3],
-            nonlocal_pool=cfg.NONLOCAL.POOL[3],
-            instantiation=cfg.NONLOCAL.INSTANTIATION,
-            trans_func_name=cfg.RESNET.TRANS_FUNC,
-            stride_1x1=cfg.RESNET.STRIDE_1X1,
-            inplace_relu=cfg.RESNET.INPLACE_RELU,
-            dilation=cfg.RESNET.SPATIAL_DILATIONS[3],
+            num_block_temp_kernel=cfg.VSF.RESNET.NUM_BLOCK_TEMP_KERNEL[3],
+            nonlocal_inds=cfg.VSF.NONLOCAL.LOCATION[3],
+            nonlocal_group=cfg.VSF.NONLOCAL.GROUP[3],
+            nonlocal_pool=cfg.VSF.NONLOCAL.POOL[3],
+            instantiation=cfg.VSF.NONLOCAL.INSTANTIATION,
+            trans_func_name=cfg.VSF.RESNET.TRANS_FUNC,
+            stride_1x1=cfg.VSF.RESNET.STRIDE_1X1,
+            inplace_relu=cfg.VSF.RESNET.INPLACE_RELU,
+            dilation=cfg.VSF.RESNET.SPATIAL_DILATIONS[3],
         )
 
-        if self.enable_detection:
-            self.head = head_helper.ResNetRoIHead(
-                dim_in=[width_per_group * 32],
-                num_classes=cfg.MODEL.NUM_CLASSES,
-                pool_size=[[cfg.DATA.NUM_FRAMES // pool_size[0][0], 1, 1]],
-                resolution=[[cfg.DETECTION.ROI_XFORM_RESOLUTION] * 2],
-                scale_factor=[cfg.DETECTION.SPATIAL_SCALE_FACTOR],
-                dropout_rate=cfg.MODEL.DROPOUT_RATE,
-                act_func="sigmoid",
-                aligned=cfg.DETECTION.ALIGNED,
-            )
-        else:
-            self.head = head_helper.ResNetBasicHead(
-                dim_in=[width_per_group * 32],
-                num_classes=cfg.MODEL.NUM_CLASSES,
-                pool_size=[
-                    [
-                        cfg.DATA.NUM_FRAMES // pool_size[0][0],
-                        cfg.DATA.CROP_SIZE // 32 // pool_size[0][1],
-                        cfg.DATA.CROP_SIZE // 32 // pool_size[0][2],
-                    ]
-                ],
-                dropout_rate=cfg.MODEL.DROPOUT_RATE,
-            )
+        self.head = head_helper.ResNetBasicHead(
+            dim_in=[width_per_group * 32],
+            num_classes=cfg.VSF.MODEL.NUM_CLASSES,
+            pool_size=[
+                [
+                    cfg.DATA.NUM_FRAMES // pool_size[0][0],
+                    cfg.DATA.CROP_SIZE // 32 // pool_size[0][1],
+                    cfg.DATA.CROP_SIZE // 32 // pool_size[0][2],
+                ]
+            ],
+            dropout_rate=cfg.VSF.MODEL.DROPOUT_RATE,
+        )
 
     def forward(self, x, bboxes=None):
         x = self.s1(x)

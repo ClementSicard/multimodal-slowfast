@@ -19,12 +19,12 @@ class EpicKitchens(torch.utils.data.Dataset):
         self.target_fps = 60
         # For training or validation mode, one single clip is sampled from every
         # video. For testing, NUM_ENSEMBLE_VIEWS clips are sampled from every
-        # video. For every clip, NUM_SPATIAL_CROPS is cropped spatially from
+        # video. For every clip, NUM_SPATIAL_CROPS_VSF is cropped spatially from
         # the frames.
         if self.mode in ["train", "val", "train+val"]:
             self._num_clips = 1
         elif self.mode in ["test"]:
-            self._num_clips = cfg.TEST.NUM_ENSEMBLE_VIEWS * cfg.TEST.NUM_SPATIAL_CROPS
+            self._num_clips = cfg.TEST.NUM_ENSEMBLE_VIEWS * cfg.TEST.NUM_SPATIAL_CROPS_VSF
 
         logger.info("Constructing EPIC-KITCHENS {}...".format(mode))
         self._construct_loader()
@@ -91,15 +91,15 @@ class EpicKitchens(torch.utils.data.Dataset):
             spatial_sample_index = -1
             min_scale = self.cfg.DATA.TRAIN_JITTER_SCALES_VSF[0]
             max_scale = self.cfg.DATA.TRAIN_JITTER_SCALES_VSF[1]
-            crop_size = self.cfg.DATA.TRAIN_CROP_SIZE
+            crop_size = self.cfg.DATA.TRAIN_CROP_SIZE_VSF
         elif self.mode in ["test"]:
-            temporal_sample_index = self._spatial_temporal_idx[index] // self.cfg.TEST.NUM_SPATIAL_CROPS
+            temporal_sample_index = self._spatial_temporal_idx[index] // self.cfg.TEST.NUM_SPATIAL_CROPS_VSF
             # spatial_sample_index is in [0, 1, 2]. Corresponding to left,
             # center, or right if width is larger than height, and top, middle,
             # or bottom if height is larger than width.
-            if self.cfg.TEST.NUM_SPATIAL_CROPS == 3:
-                spatial_sample_index = self._spatial_temporal_idx[index] % self.cfg.TEST.NUM_SPATIAL_CROPS
-            elif self.cfg.TEST.NUM_SPATIAL_CROPS == 1:
+            if self.cfg.TEST.NUM_SPATIAL_CROPS_VSF == 3:
+                spatial_sample_index = self._spatial_temporal_idx[index] % self.cfg.TEST.NUM_SPATIAL_CROPS_VSF
+            elif self.cfg.TEST.NUM_SPATIAL_CROPS_VSF == 1:
                 spatial_sample_index = 1
             min_scale, max_scale, crop_size = [self.cfg.DATA.TEST_CROP_SIZE] * 3
             # The testing is deterministic and no jitter should be performed.

@@ -11,7 +11,6 @@ from train import train_model
 
 def main(args: Dict[str, Any]) -> None:
     cfg = load_config(args=args)
-    exit()
 
     if not torch.cuda.is_available():
         logger.warning("No GPU found. Running on CPU.")

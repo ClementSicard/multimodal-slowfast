@@ -41,9 +41,9 @@ def pack_audio(
     samples = audio_dataset[audio_record.untrimmed_video_name][()]
     start_idx, end_idx = get_start_end_idx(
         audio_record.num_audio_samples,
-        int(round(cfg.AUDIO_DATA.SAMPLING_RATE * cfg.AUDIO_DATA.CLIP_SECS)),
+        int(round(cfg.ASF.AUDIO_DATA.SAMPLING_RATE * cfg.ASF.AUDIO_DATA.CLIP_SECS)),
         temporal_sample_index,
-        cfg.TEST.NUM_ENSEMBLE_VIEWS,
+        cfg.TEST.NUM_ENSEMBLE_VIEWS_ASF,
         start_sample=audio_record.start_audio_sample,
     )
     start_idx, end_idx = int(start_idx), int(end_idx)
@@ -60,8 +60,8 @@ def pack_audio(
 
 
 def _log_specgram(cfg, audio, window_size=10, step_size=5, eps=1e-6):
-    stft_window_size = int(round(window_size * cfg.AUDIO_DATA.SAMPLING_RATE / 1e3))
-    stft_hop_size = int(round(step_size * cfg.AUDIO_DATA.SAMPLING_RATE / 1e3))
+    stft_window_size = int(round(window_size * cfg.ASF.AUDIO_DATA.SAMPLING_RATE / 1e3))
+    stft_hop_size = int(round(step_size * cfg.ASF.AUDIO_DATA.SAMPLING_RATE / 1e3))
     from librosa import filters, stft
 
     # if stft_window_size > stft_hop_size:
@@ -73,16 +73,16 @@ def _log_specgram(cfg, audio, window_size=10, step_size=5, eps=1e-6):
     # mel-spec
     spec = stft(
         audio,
-        n_fft=cfg.AUDIO_DATA.N_FFT,
+        n_fft=cfg.ASF.AUDIO_DATA.N_FFT,
         window="hann",
         hop_length=stft_hop_size,
         win_length=stft_window_size,
         pad_mode="constant",
     )
     mel_basis = filters.mel(
-        sr=cfg.AUDIO_DATA.SAMPLING_RATE,
-        n_fft=cfg.AUDIO_DATA.N_FFT,
-        n_mels=cfg.AUDIO_DATA.NUM_FREQUENCIES,
+        sr=cfg.ASF.AUDIO_DATA.SAMPLING_RATE,
+        n_fft=cfg.ASF.AUDIO_DATA.N_FFT,
+        n_mels=cfg.ASF.AUDIO_DATA.NUM_FREQUENCIES,
         htk=True,
         norm=None,
     )
@@ -126,7 +126,7 @@ def _extract_sound_feature(
         The sound features, transformed if `transform` is not `None`.
     """
     # 1st case: the audio clip is shorter than the desired length.
-    if audio_record.num_audio_samples < int(round(cfg.AUDIO_DATA.SAMPLING_RATE * cfg.AUDIO_DATA.CLIP_SECS)):
+    if audio_record.num_audio_samples < int(round(cfg.ASF.AUDIO_DATA.SAMPLING_RATE * cfg.ASF.AUDIO_DATA.CLIP_SECS)):
         samples = samples[audio_record.start_audio_sample : audio_record.end_audio_sample]
 
     # 2nd case: the audio clip is longer than the desired length.
@@ -135,16 +135,16 @@ def _extract_sound_feature(
 
     # In case the overlaps goes beyond the end of the audio clip, pad the audio clip with copies of the last sample.
     if transform is not None:
-        samples = transform(samples, sample_rate=cfg.AUDIO_DATA.SAMPLING_RATE)
+        samples = transform(samples, sample_rate=cfg.ASF.AUDIO_DATA.SAMPLING_RATE)
 
     spectrogram = _log_specgram(
         cfg=cfg,
         audio=samples,
-        window_size=cfg.AUDIO_DATA.WINDOW_LENGTH,
-        step_size=cfg.AUDIO_DATA.HOP_LENGTH,
+        window_size=cfg.ASF.AUDIO_DATA.WINDOW_LENGTH,
+        step_size=cfg.ASF.AUDIO_DATA.HOP_LENGTH,
     )
 
-    num_timesteps_to_pad = cfg.AUDIO_DATA.NUM_FRAMES - spectrogram.shape[0]
+    num_timesteps_to_pad = cfg.ASF.AUDIO_DATA.NUM_FRAMES - spectrogram.shape[0]
     if num_timesteps_to_pad > 0:
         # logger.warning(f"Padded spectrogram {audio_record._index} with copies of the last sample.")
         spectrogram = np.pad(spectrogram, ((0, num_timesteps_to_pad), (0, 0)), "edge")
