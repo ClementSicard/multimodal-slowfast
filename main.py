@@ -1,5 +1,4 @@
 from loguru import logger
-from mmsf.model.mmsf import MultimodalSlowFast
 from mmsf.config.load import load_config
 from argparse import ArgumentParser, Namespace
 from typing import Dict, Any
@@ -11,7 +10,8 @@ from train import train_model
 
 
 def main(args: Dict[str, Any]) -> None:
-    cfg = load_config(args)
+    cfg = load_config(args=args)
+    exit()
 
     if not torch.cuda.is_available():
         logger.warning("No GPU found. Running on CPU.")

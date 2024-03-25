@@ -34,6 +34,7 @@ _C.TRAIN.DATASET = "EpicKitchens"
 _C.TRAIN.BATCH_SIZE = 64
 
 _C.TRAIN.EVAL_PERIOD = 1
+_C.TRAIN.CHECKPOINT_PERIOD = 1
 
 # Resume training from the latest checkpoint in the output directory.
 _C.TRAIN.AUTO_RESUME = True
@@ -230,9 +231,13 @@ def _assert_and_infer_cfg(cfg: CfgNode) -> CfgNode:
     assert cfg.TEST.NUM_SPATIAL_CROPS_VSF == 3
 
     # RESNET assertions.
-    assert cfg.RESNET.NUM_GROUPS > 0
-    assert cfg.RESNET.WIDTH_PER_GROUP > 0
-    assert cfg.RESNET.WIDTH_PER_GROUP % cfg.RESNET.NUM_GROUPS == 0
+    assert cfg.ASF.RESNET.NUM_GROUPS > 0
+    assert cfg.ASF.RESNET.WIDTH_PER_GROUP > 0
+    assert cfg.ASF.RESNET.WIDTH_PER_GROUP % cfg.ASF.RESNET.NUM_GROUPS == 0
+
+    assert cfg.VSF.RESNET.NUM_GROUPS > 0
+    assert cfg.VSF.RESNET.WIDTH_PER_GROUP > 0
+    assert cfg.VSF.RESNET.WIDTH_PER_GROUP % cfg.VSF.RESNET.NUM_GROUPS == 0
 
     # General assertions.
     assert cfg.SHARD_ID < cfg.NUM_SHARDS

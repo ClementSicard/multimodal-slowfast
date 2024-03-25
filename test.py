@@ -1,4 +1,3 @@
-import torch
 from loguru import logger
 from fvcore.common.config import CfgNode
 

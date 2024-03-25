@@ -158,6 +158,8 @@ def _assert_and_infer_cfg(cfg):
     assert cfg.RESNET.WIDTH_PER_GROUP > 0
     assert cfg.RESNET.WIDTH_PER_GROUP % cfg.RESNET.NUM_GROUPS == 0
 
+    return cfg
+
 
 def get_cfg():
     """
