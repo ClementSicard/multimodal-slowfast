@@ -26,12 +26,6 @@ data: # This target clones the repos only if they don't exist in the data direct
 
 	$(MAKE) update
 
-.PHONY: clone
-clone:
-	@git submodule add git@github.com:ClementSicard/auditory-slow-fast.git asf
-	@git submodule add git@github.com:ClementSicard/slowfast.git vsf
-
-
 .PHONY: update
 update:
 	@git submodule sync --recursive
@@ -44,3 +38,24 @@ weights:
 	@mkdir -p weights/asf weights/vsf
 	@wget https://www.dropbox.com/s/cr0c6xdaggc2wzz/$(ASF_WEIGHTS_FILE) -O weights/asf/$(ASF_WEIGHTS_FILE)
 	@wget https://www.dropbox.com/s/uxb6i2xkn91xqzi/$(VSF_WEIGHTS_FILE) -O weights/vsf/$(VSF_WEIGHTS_FILE)
+
+
+.PHONY: bash
+bash:
+	@echo "Running interactive bash session"
+	@srun --job-name "interactive bash" \
+		--cpus-per-task 4 \
+		--mem 32G \
+		--time 4:00:00 \
+		--pty bash
+
+
+.PHONY: bash-gpu
+bash-gpu:
+	@echo "Running interactive bash session"
+	@srun --job-name "bash-gpu" \
+		--cpus-per-task 8 \
+		--mem 32G \
+		--gres gpu:1 \
+		--time 4:00:00 \
+		--pty bash
