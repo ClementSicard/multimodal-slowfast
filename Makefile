@@ -1,4 +1,5 @@
 ASF_WEIGHTS_FILE := SLOWFAST_EPIC.pyth
+VSF_WEIGHTS_FILE := SlowFast.pyth
 
 EK_REPO_NAME := epic-kitchens-100-annotations
 ES_REPO_NAME := epic-sounds-annotations
@@ -40,5 +41,6 @@ update:
 
 .PHONY: weights
 weights:
-	@mkdir -p weights/asf
+	@mkdir -p weights/asf weights/vsf
 	@wget https://www.dropbox.com/s/cr0c6xdaggc2wzz/$(ASF_WEIGHTS_FILE) -O weights/asf/$(ASF_WEIGHTS_FILE)
+	@wget https://www.dropbox.com/s/uxb6i2xkn91xqzi/$(VSF_WEIGHTS_FILE) -O weights/vsf/$(VSF_WEIGHTS_FILE)
