@@ -5,8 +5,8 @@ from typing import Dict, Any
 import json
 import torch
 
-from test import test_model
-from train import train_model
+from test_net import test_model
+from train_net import train_model
 
 
 def main(args: Dict[str, Any]) -> None:

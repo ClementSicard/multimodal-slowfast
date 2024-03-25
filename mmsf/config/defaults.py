@@ -217,6 +217,16 @@ _C.EPICKITCHENS.TRAIN_PLUS_VAL = False
 _C.EPICKITCHENS.VIDEO_DURS = "EPIC_100_video_info.csv"
 
 
+"""
+Model configuration
+"""
+_C.MODEL = CfgNode()
+
+_C.MODEL.LOAD_SEPARATE_WEIGHTS = True
+
+_C.MODEL.FREEZE_MOD_SPECIFIC_WEIGHTS = True
+
+
 def _assert_and_infer_cfg(cfg: CfgNode) -> CfgNode:
     # BN assertions.
     if cfg.BN.USE_PRECISE_STATS:
