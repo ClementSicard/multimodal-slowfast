@@ -5,7 +5,7 @@ from typing import Dict, Any
 import json
 import torch
 
-from test_net import test_model
+from test_net import test
 from train_net import train_model
 
 
@@ -28,7 +28,7 @@ def main(args: Dict[str, Any]) -> None:
         train_model(cfg=cfg)
 
     if args.get("test"):
-        test_model(cfg=cfg)
+        test(cfg=cfg)
 
     logger.success("Done! 🚢")
 

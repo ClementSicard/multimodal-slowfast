@@ -8,8 +8,7 @@ import decimal
 import logging
 import sys
 import simplejson
-
-import slowfast.utils.distributed as du
+import mmsf.utils.distributed as du
 
 
 def _suppress_print():

@@ -8,6 +8,7 @@ import torch.nn as nn
 
 import mmsf.model.asf.weight_init_helper as init_helper
 from mmsf.model.asf.batch_norm_helper import get_norm
+from mmsf.model.asf.identity_head import ModifiedAudioSlowFastHead
 
 from mmsf.model.asf import head_helper, resnet_helper, stem_helper
 
@@ -282,7 +283,8 @@ class AudioSlowFast(nn.Module):
             norm_module=self.norm_module,
         )
 
-        self.head = head_helper.ResNetBasicHead(
+        # self.head = head_helper.ResNetBasicHead(
+        self.head = ModifiedAudioSlowFastHead(
             dim_in=[
                 width_per_group * 32,
                 width_per_group * 32 // cfg.ASF.SLOWFAST.BETA_INV,

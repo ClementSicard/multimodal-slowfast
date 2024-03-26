@@ -1,5 +1,6 @@
 ASF_WEIGHTS_FILE := SLOWFAST_EPIC.pyth
-VSF_WEIGHTS_FILE := SlowFast.pyth
+VSF_WEIGHTS_FILE := SLOWFAST.pyth
+CONFIG_DIR := configs
 
 EK_REPO_NAME := epic-kitchens-100-annotations
 ES_REPO_NAME := epic-sounds-annotations
@@ -59,3 +60,9 @@ bash-gpu:
 		--gres gpu:1 \
 		--time 4:00:00 \
 		--pty bash
+
+
+.PHONY: train
+train:
+	@echo "Running the main script"
+	@./singrw <<< "python main.py --cfg ${CONFIG_DIR}/train-config.yaml --train"

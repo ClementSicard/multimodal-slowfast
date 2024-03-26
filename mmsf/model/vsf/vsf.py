@@ -10,6 +10,7 @@ import torch.nn as nn
 import mmsf.model.vsf.weight_init_helper as init_helper
 
 from mmsf.model.vsf import head_helper, resnet_helper, stem_helper
+from mmsf.model.vsf.identity_head import ModifiedVideoSlowFastHead
 
 # Number of blocks for different stages given the model depth.
 _MODEL_STAGE_DEPTH = {50: (3, 4, 6, 3), 101: (3, 4, 23, 3)}
@@ -304,7 +305,8 @@ class SlowFast(nn.Module):
             dilation=cfg.VSF.RESNET.SPATIAL_DILATIONS[3],
         )
 
-        self.head = head_helper.ResNetBasicHead(
+        # self.head = head_helper.ResNetBasicHead(
+        self.head = ModifiedVideoSlowFastHead(
             dim_in=[
                 width_per_group * 32,
                 width_per_group * 32 // cfg.VSF.SLOWFAST.BETA_INV,
@@ -326,32 +328,20 @@ class SlowFast(nn.Module):
         )
 
     def forward(self, x):
-        logger.debug(f"S1: {x.shape if isinstance(x, torch.Tensor) else [i.shape for i in x]}")
         x = self.s1(x)
-        logger.debug(f"S1_fuse: {x.shape if isinstance(x, torch.Tensor) else [i.shape for i in x]}")
         x = self.s1_fuse(x)
-        logger.debug(f"S2: {x.shape if isinstance(x, torch.Tensor) else [i.shape for i in x]}")
         x = self.s2(x)
-        logger.debug(f"S2_fuse: {x.shape if isinstance(x, torch.Tensor) else [i.shape for i in x]}")
         x = self.s2_fuse(x)
-        logger.debug(f"Pathway pooling: {x.shape if isinstance(x, torch.Tensor) else [i.shape for i in x]}")
         for pathway in range(self.num_pathways):
             pool = getattr(self, "pathway{}_pool".format(pathway))
             x[pathway] = pool(x[pathway])
-        logger.debug(f"S3: {x.shape if isinstance(x, torch.Tensor) else [i.shape for i in x]}")
         x = self.s3(x)
-        logger.debug(f"S3_fuse: {x.shape if isinstance(x, torch.Tensor) else [i.shape for i in x]}")
         x = self.s3_fuse(x)
-        logger.debug(f"S4: {x.shape if isinstance(x, torch.Tensor) else [i.shape for i in x]}")
         x = self.s4(x)
-        logger.debug(f"S4_fuse: {x.shape if isinstance(x, torch.Tensor) else [i.shape for i in x]}")
         x = self.s4_fuse(x)
-        logger.debug(f"S5: {x.shape if isinstance(x, torch.Tensor) else [i.shape for i in x]}")
         x = self.s5(x)
-        logger.debug(f"Head: {x.shape if isinstance(x, torch.Tensor) else [i.shape for i in x]}")
 
         x = self.head(x)
-        logger.debug(f"Final output: {x.shape if isinstance(x, torch.Tensor) else [i.shape for i in x]}")
         return x
 
     def freeze_fn(self, freeze_mode):

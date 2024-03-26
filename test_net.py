@@ -95,7 +95,7 @@ def test(cfg: CfgNode) -> None:
             cfg.NUM_GPUS > 1,
             None,
             inflation=False,
-            convert_from_caffe2=cfg.TEST.CHECKPOINT_TYPE == "caffe2",
+            convert_from_caffe2=False,
         )
     elif cu.has_checkpoint(cfg.OUTPUT_DIR):
         last_checkpoint = cu.get_last_checkpoint(cfg.OUTPUT_DIR)

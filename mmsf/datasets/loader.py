@@ -8,7 +8,7 @@ import torch
 from torch.utils.data._utils.collate import default_collate
 from torch.utils.data.distributed import DistributedSampler
 from torch.utils.data.sampler import RandomSampler
-import mmsf.datasets.video.utils as utils
+import mmsf.datasets.audio.utils as utils
 
 
 def construct_loader(cfg, split, dataset_class=None) -> torch.utils.data.DataLoader:

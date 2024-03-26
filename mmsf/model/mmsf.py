@@ -6,6 +6,8 @@ from mmsf.model.vsf.vsf import SlowFast as VideoSlowFast
 from fvcore.common.config import CfgNode
 from loguru import logger
 
+from mmsf.model.head import MMMidSlowFastHead
+
 
 class MultimodalSlowFast(nn.Module):
     def __init__(self, cfg: CfgNode) -> None:
@@ -18,22 +20,20 @@ class MultimodalSlowFast(nn.Module):
         self.audio_model = AudioSlowFast(cfg=self.cfg)
         self.video_model = VideoSlowFast(cfg=self.cfg)
 
-        # Remove the last layer of the video model
-        self.audio_model.head = nn.Identity()
-        self.video_model.head = nn.Identity()
+        self.head = MMMidSlowFastHead(
+            dim_in=[2304, 2304],
+            num_classes=cfg.MODEL.NUM_CLASSES,
+            act_func=cfg.MODEL.ACTIVATION_FUNC,
+        )
 
-        self.fusion_fc = nn.Linear(2048, 2)
+    def forward(self, batch) -> None:
+        specs, frames = batch
 
-    def forward(self, x) -> None:
-        audio, video = x
+        audio_features = self.audio_model(specs)
+        video_features = self.video_model(frames)
 
-        audio_features = self.audio_model(audio)
-        video_features = self.video_model(video)
+        audio_features = audio_features.unsqueeze(1)
 
-        # Concatenate the features
-        features = torch.cat((audio_features, video_features), dim=1)
+        x = self.head(audio_features, video_features)
 
-        # Fusion
-        output = self.fusion_fc(features)
-
-        return output
+        return x

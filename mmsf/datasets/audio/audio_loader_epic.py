@@ -43,7 +43,7 @@ def pack_audio(
         audio_record.num_audio_samples,
         int(round(cfg.ASF.AUDIO_DATA.SAMPLING_RATE * cfg.ASF.AUDIO_DATA.CLIP_SECS)),
         temporal_sample_index,
-        cfg.TEST.NUM_ENSEMBLE_VIEWS_ASF,
+        cfg.TEST.NUM_ENSEMBLE_VIEWS,
         start_sample=audio_record.start_audio_sample,
     )
     start_idx, end_idx = int(start_idx), int(end_idx)

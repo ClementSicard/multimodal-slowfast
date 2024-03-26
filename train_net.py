@@ -1,3 +1,4 @@
+from mmsf.utils.gpu import to_gpu
 import torch
 import numpy as np
 from loguru import logger
@@ -38,7 +39,7 @@ def train_epoch(
     train_meter.iter_tic()
     data_size = len(train_loader)
 
-    for cur_iter, (inputs, labels, _, meta) in enumerate(
+    for cur_iter, (specs, frames, labels, _, meta) in enumerate(
         tqdm(
             train_loader,
             total=len(train_loader),
@@ -46,23 +47,15 @@ def train_epoch(
             unit="batch",
         ),
     ):
-        # Transfer the data to the current GPU device.
-        if isinstance(inputs, (list,)):
-            for i in range(len(inputs)):
-                inputs[i] = inputs[i].cuda(non_blocking=True)
-        else:
-            inputs = inputs.cuda(non_blocking=True)
-        if isinstance(labels, (dict,)):
-            labels = {k: v.cuda() for k, v in labels.items()}
-        else:
-            labels = labels.cuda()
+        if cfg.NUM_GPUS > 0:
+            to_gpu(specs, frames, labels)
 
         # Update the learning rate.
         lr = optim.get_epoch_lr(cur_epoch + float(cur_iter) / data_size, cfg)
         optim.set_lr(optimizer, lr)
 
         # Perform the forward pass.
-        preds = model(inputs)
+        preds = model((specs, frames))
         verb_preds, noun_preds = preds
 
         # Explicitly declare reduction to mean.
@@ -172,8 +165,8 @@ def train_model(cfg: CfgNode) -> None:
     train_loader = loader.construct_loader(cfg=cfg, split="train", dataset_class=MultimodalEpicKitchens)
     val_loader = loader.construct_loader(cfg=cfg, split="val", dataset_class=MultimodalEpicKitchens)
 
-    logger.info(f"Train Loader: {len(train_loader):,} samples")
-    logger.info(f"Val Loader: {len(val_loader):,} samples")
+    logger.info(f"Train Loader: {len(train_loader):,} batches of size {cfg.TRAIN.BATCH_SIZE}")
+    logger.info(f"Val Loader: {len(val_loader):,} batches of size {cfg.TRAIN.BATCH_SIZE}")
 
     if cfg.WANDB.ENABLE:
         wandb.init(project="MMMid-SlowFast", config=cfg)
@@ -189,7 +182,7 @@ def train_model(cfg: CfgNode) -> None:
         loader.shuffle_dataset(loader=train_loader, cur_epoch=cur_epoch)
 
         train_epoch(
-            loader=train_loader,
+            train_loader=train_loader,
             model=model,
             optimizer=optimizer,
             train_meter=train_meter,
