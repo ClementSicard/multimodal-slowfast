@@ -10,7 +10,7 @@ DATA_DIR := data
 
 LOGS_DIR := logs
 SCRATCH := /scratch/$${USER}
-REPO_DIR := $(SCRATCH)/slowfast
+REPO_DIR := $(SCRATCH)/multimodal-slowfast
 MAIL_ADDRESS := $${USER}@nyu.edu
 DURATION := 72:00:00
 WANDB_CACHE_DIR := $(SCRATCH)/.cache/wandb
@@ -80,7 +80,7 @@ train:
 job-train:
 	@mkdir -p $(LOGS_DIR)
 	@DATE=$$(date +"%Y_%m_%d-%T"); \
-	JOB_NAME="sf-gru-train"; \
+	JOB_NAME="mm-sf-train"; \
 	LOG_FILE="$(REPO_DIR)/$(LOGS_DIR)/$${DATE}-$${JOB_NAME}.log"; \
 	sbatch -N 1 \
 	    --ntasks 1 \

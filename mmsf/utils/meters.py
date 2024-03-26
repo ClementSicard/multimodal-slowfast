@@ -204,7 +204,6 @@ class EPICTrainMeter(object):
             "mem": int(np.ceil(mem_usage)),
         }
         wandb.log(stats)
-        logger.warning("ICIIII")
         logging.log_json_stats(stats)
 
     def log_epoch_stats(self, cur_epoch):
