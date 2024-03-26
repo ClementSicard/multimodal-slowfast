@@ -39,7 +39,7 @@ def train_epoch(
     train_meter.iter_tic()
     data_size = len(train_loader)
 
-    for cur_iter, (specs, frames, labels, _, meta) in enumerate(
+    for cur_iter, batch in enumerate(
         tqdm(
             train_loader,
             total=len(train_loader),
@@ -47,8 +47,12 @@ def train_epoch(
             unit="batch",
         ),
     ):
+        specs, frames, labels, _, meta = batch
+
         if cfg.NUM_GPUS > 0:
-            to_gpu(specs, frames, labels)
+            specs = to_gpu(specs)
+            frames = to_gpu(frames)
+            labels = to_gpu(labels)
 
         # Update the learning rate.
         lr = optim.get_epoch_lr(cur_epoch + float(cur_iter) / data_size, cfg)
@@ -119,13 +123,14 @@ def train_epoch(
         )
 
         train_meter.iter_toc()
+
         # Update and log stats.
         train_meter.update_stats(
             (verb_top1_acc, noun_top1_acc, action_top1_acc),
             (verb_top5_acc, noun_top5_acc, action_top5_acc),
             (loss_verb, loss_noun, loss),
             lr,
-            inputs[0].size(0) * cfg.NUM_GPUS,
+            specs[0].size(0) * max(cfg.NUM_GPUS, 1),
         )
 
         train_meter.log_iter_stats(cur_epoch, cur_iter)
@@ -145,6 +150,10 @@ def train_model(cfg: CfgNode) -> None:
     logger.info(f"Training with config:\n{cfg}")
 
     model = MultimodalSlowFast(cfg=cfg)
+
+    if cfg.NUM_GPUS > 0:
+        cur_device = torch.cuda.current_device()
+        model = model.cuda(device=cur_device)
 
     # Freeze the weights of the audio_model and video_model
     if cfg.MODEL.FREEZE_MOD_SPECIFIC_WEIGHTS:
@@ -178,7 +187,11 @@ def train_model(cfg: CfgNode) -> None:
 
     logger.info("Start training.")
 
+    # Print the number of trainable parameters
+    logger.warning(f"Number of trainable parameters: {sum(p.numel() for p in model.parameters() if p.requires_grad):,}")
+
     for cur_epoch in range(start_epoch, cfg.SOLVER.MAX_EPOCH):
+        logger.success(f"Starting epoch {cur_epoch}...")
         loader.shuffle_dataset(loader=train_loader, cur_epoch=cur_epoch)
 
         train_epoch(
@@ -195,7 +208,7 @@ def train_model(cfg: CfgNode) -> None:
             calculate_and_update_precise_bn(train_loader, model, cfg.BN.NUM_BATCHES_PRECISE)
 
         # Save a checkpoint.
-        if cu.is_checkpoint_epoch(cur_epoch, cfg.TRAIN.CHECKPOINT_PERIOD):
+        if cu.is_checkpoint_epoch(cfg, cur_epoch):
             cu.save_checkpoint(cfg.OUTPUT_DIR, model, optimizer, cur_epoch, cfg)
 
         # Evaluate the model on validation set.

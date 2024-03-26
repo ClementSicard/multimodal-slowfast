@@ -1,9 +1,11 @@
+from mmsf.utils.gpu import to_gpu
 import torch
 from fvcore.common.config import CfgNode
 
 from mmsf.utils import metrics
 import mmsf.utils.distributed as du
 from mmsf.utils.meters import EPICValMeter
+from tqdm import tqdm
 
 
 @torch.no_grad()
@@ -43,21 +45,26 @@ def eval_epoch(
     model.eval()
     val_meter.iter_tic()
 
-    for cur_iter, (inputs, labels, _, _) in enumerate(val_loader):
-        # Transferthe data to the current GPU device.
-        if isinstance(inputs, (list,)):
-            for i in range(len(inputs)):
-                inputs[i] = inputs[i].cuda(non_blocking=True)
-        else:
-            inputs = inputs.cuda(non_blocking=True)
-        if isinstance(labels, (dict,)):
-            labels = {k: v.cuda() for k, v in labels.items()}
-        else:
-            labels = labels.cuda()
+    for cur_iter, batch in enumerate(
+        tqdm(
+            val_loader,
+            total=len(val_loader),
+            desc="Validation",
+            unit="batch",
+        )
+    ):
+        specs, frames, labels, _, meta = batch
 
-        preds = model(inputs)
+        if cfg.NUM_GPUS > 0:
+            specs = to_gpu(specs)
+            frames = to_gpu(frames)
+            labels = to_gpu(labels)
+
+        preds = model((specs, frames))
+
+        verb_preds, noun_preds = preds
         # Compute the verb accuracies.
-        verb_top1_acc, verb_top5_acc = metrics.topk_accuracies(preds[0], labels["verb"], (1, 5))
+        verb_top1_acc, verb_top5_acc = metrics.topk_accuracies(verb_preds, labels["verb"], (1, 5))
 
         # Combine the errors across the GPUs.
         if cfg.NUM_GPUS > 1:
@@ -67,7 +74,7 @@ def eval_epoch(
         verb_top1_acc, verb_top5_acc = verb_top1_acc.item(), verb_top5_acc.item()
 
         # Compute the noun accuracies.
-        noun_top1_acc, noun_top5_acc = metrics.topk_accuracies(preds[1], labels["noun"], (1, 5))
+        noun_top1_acc, noun_top5_acc = metrics.topk_accuracies(noun_preds, labels["noun"], (1, 5))
 
         # Combine the errors across the GPUs.
         if cfg.NUM_GPUS > 1:
@@ -78,7 +85,7 @@ def eval_epoch(
 
         # Compute the action accuracies.
         action_top1_acc, action_top5_acc = metrics.multitask_topk_accuracies(
-            (preds[0], preds[1]), (labels["verb"], labels["noun"]), (1, 5)
+            (verb_preds, noun_preds), (labels["verb"], labels["noun"]), (1, 5)
         )
         # Combine the errors across the GPUs.
         if cfg.NUM_GPUS > 1:
@@ -88,15 +95,17 @@ def eval_epoch(
         action_top1_acc, action_top5_acc = action_top1_acc.item(), action_top5_acc.item()
 
         val_meter.iter_toc()
+
         # Update and log stats.
         val_meter.update_stats(
             (verb_top1_acc, noun_top1_acc, action_top1_acc),
             (verb_top5_acc, noun_top5_acc, action_top5_acc),
-            inputs[0].size(0) * cfg.NUM_GPUS,
+            specs[0].size(0) * max(cfg.NUM_GPUS, 1),
         )
 
         val_meter.log_iter_stats(cur_epoch, cur_iter)
         val_meter.iter_tic()
+
     # Log epoch stats.
     is_best_epoch = val_meter.log_epoch_stats(cur_epoch)
     val_meter.reset()

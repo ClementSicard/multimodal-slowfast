@@ -1,7 +1,7 @@
 TRAIN:
   ENABLE: True
   DATASET: EpicKitchens
-  BATCH_SIZE: 4
+  BATCH_SIZE: 64
   EVAL_PERIOD: 1
   CHECKPOINT_PERIOD: 1
   CHECKPOINT_FILE_PATH_ASF: weights/asf/SLOWFAST_EPIC.pyth
@@ -117,6 +117,8 @@ EPICKITCHENS:
   TEST_LIST: data/epic-kitchens-100-annotations/EPIC_100_validation.pkl
   VISUAL_DATA_DIR: /rgb_frames
   AUDIO_DATA_FILE: /scratch/work/ptg/EPIC-KITCHENS/EPIC_audio.hdf5
+
+  SINGLE_BATCH: False
 
 # MMSF specific configurations
 MODEL:

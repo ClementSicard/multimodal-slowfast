@@ -16,13 +16,13 @@ def main(args: Dict[str, Any]) -> None:
         logger.warning("No GPU found. Running on CPU.")
         cfg.NUM_GPUS = 0
 
-        cfg.WANDB.ENABLE = False
+        cfg.WANDB.ENABLE = True
 
         cfg.DATA_LOADER.NUM_WORKERS = 4
 
         cfg.TRAIN.BATCH_SIZE = 2
 
-        cfg.TEST.BATCH_SIZE = 1
+        cfg.TEST.BATCH_SIZE = 2
 
     if args.get("train"):
         train_model(cfg=cfg)

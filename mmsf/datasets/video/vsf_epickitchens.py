@@ -26,6 +26,10 @@ class EpicKitchens(torch.utils.data.Dataset):
         elif self.mode in ["test"]:
             self._num_clips = cfg.TEST.NUM_ENSEMBLE_VIEWS * cfg.TEST.NUM_SPATIAL_CROPS_VSF
 
+        self.unique_batch = cfg.EPICKITCHENS.SINGLE_BATCH
+        if self.unique_batch:
+            logger.warning("Using a SINGLE batch for debugging.")
+
         logger.info("Constructing EPIC-KITCHENS {}...".format(mode))
         self._construct_loader()
 
@@ -57,7 +61,9 @@ class EpicKitchens(torch.utils.data.Dataset):
         self._video_records = []
         self._spatial_temporal_idx = []
         for file in path_annotations_pickle:
-            for tup in pd.read_pickle(file).iterrows():
+            file_df = pd.read_pickle(file)
+
+            for tup in file_df.iterrows() if not self.unique_batch else file_df[: self.cfg.TRAIN.BATCH_SIZE].iterrows():
                 for idx in range(self._num_clips):
                     self._video_records.append(EpicKitchensVideoRecord(tup))
                     self._spatial_temporal_idx.append(idx)

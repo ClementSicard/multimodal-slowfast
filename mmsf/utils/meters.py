@@ -225,7 +225,7 @@ class EPICTrainMeter(object):
         avg_loss_noun = self.loss_noun_total / self.num_samples
         avg_loss = self.loss_total / self.num_samples
         stats = {
-            "epoch": "{}/{}".format(cur_epoch + 1, self._cfg.SOLVER.MAX_EPOCH),
+            "epoch": cur_epoch + 1,
             "time_diff": self.iter_timer.seconds(),
             "eta": eta,
             "Epoch/Train/Acc@1 Verb": verb_top1_acc,
@@ -347,8 +347,8 @@ class EPICValMeter(object):
         eta = str(datetime.timedelta(seconds=int(eta_sec)))
         mem_usage = misc.gpu_mem_usage()
         stats = {
-            "epoch": "{}/{}".format(cur_epoch + 1, self._cfg.SOLVER.MAX_EPOCH),
-            "iter": "{}/{}".format(cur_iter + 1, self.max_iter),
+            "epoch": cur_epoch + 1,
+            "iter": cur_iter + 1,
             "time_diff": self.iter_timer.seconds(),
             "eta": eta,
             "Val/Acc@1 Verb": self.mb_verb_top1_acc.get_win_median(),
@@ -383,7 +383,7 @@ class EPICValMeter(object):
         self.max_top5_acc = max(self.max_top5_acc, top5_acc)
         mem_usage = misc.gpu_mem_usage()
         stats = {
-            "epoch": "{}/{}".format(cur_epoch + 1, self._cfg.SOLVER.MAX_EPOCH),
+            "epoch": cur_epoch + 1,
             "time_diff": self.iter_timer.seconds(),
             "Epoch/Val/Acc@1 Verb": verb_top1_acc,
             "Epoch/Val/Acc@5 Verb": verb_top5_acc,
