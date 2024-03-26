@@ -8,6 +8,14 @@ EK_DL_NAME := epic-kitchens-download-scripts
 EK_NAME := epic-kitchens-100
 DATA_DIR := data
 
+LOGS_DIR := logs
+SCRATCH := /scratch/$${USER}
+REPO_DIR := $(SCRATCH)/slowfast
+MAIL_ADDRESS := $${USER}@nyu.edu
+DURATION := 72:00:00
+WANDB_CACHE_DIR := $(SCRATCH)/.cache/wandb
+WANDB_DATA_DIR := $(SCRATCH)/.cache/wandb/data
+
 
 .PHONY: data
 data: # This target clones the repos only if they don't exist in the data directory
@@ -65,4 +73,25 @@ bash-gpu:
 .PHONY: train
 train:
 	@echo "Running the main script"
-	@./singrw <<< "python main.py --cfg ${CONFIG_DIR}/train-config.yaml --train"
+	@./singrw <<< "WANDB_CACHE_DIR=$(WANDB_CACHE_DIR) WANDB_DATA_DIR=$(WANDB_DATA_DIR) python main.py --config ${CONFIG_DIR}/train-config.yaml --train"
+
+
+.PHONY: job-train
+job-train:
+	@mkdir -p $(LOGS_DIR)
+	@DATE=$$(date +"%Y_%m_%d-%T"); \
+	JOB_NAME="sf-gru-train"; \
+	LOG_FILE="$(REPO_DIR)/$(LOGS_DIR)/$${DATE}-$${JOB_NAME}.log"; \
+	sbatch -N 1 \
+	    --ntasks 1 \
+	    --cpus-per-task 8 \
+		--gres=gpu:1 \
+	    --time $(DURATION) \
+	    --mem 64G \
+	    --error $${LOG_FILE} \
+	    --output $${LOG_FILE} \
+	    --job-name $${JOB_NAME} \
+	    --open-mode append \
+	    --mail-type "BEGIN,END" \
+		--mail-user $(MAIL_ADDRESS) \
+	    --wrap "cd $(REPO_DIR) && make train"
