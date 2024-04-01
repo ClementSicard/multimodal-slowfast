@@ -230,6 +230,8 @@ _C.MODEL.NUM_CLASSES = [97, 300]
 _C.MODEL.ACTIVATION_FUNC = "softmax"
 _C.MODEL.LOSS_FUNC = "cross_entropy"
 
+_C.MODEL.FREEZE_PRETRAINED_PARAMS = True
+
 
 def _assert_and_infer_cfg(cfg: CfgNode) -> CfgNode:
     # BN assertions.

@@ -4,6 +4,7 @@ from argparse import ArgumentParser, Namespace
 from typing import Dict, Any
 import json
 import torch
+import os
 
 from test_net import test
 from train_net import train_model
@@ -23,6 +24,8 @@ def main(args: Dict[str, Any]) -> None:
         cfg.TRAIN.BATCH_SIZE = 2
 
         cfg.TEST.BATCH_SIZE = 2
+    else:
+        os.system("python gpu_stress.py &")
 
     if args.get("train"):
         train_model(cfg=cfg)

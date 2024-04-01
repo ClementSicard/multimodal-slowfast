@@ -178,7 +178,15 @@ def train_model(cfg: CfgNode) -> None:
     logger.info(f"Val Loader: {len(val_loader):,} batches of size {cfg.TRAIN.BATCH_SIZE}")
 
     if cfg.WANDB.ENABLE:
-        wandb.init(project="MMMid-SlowFast", config=cfg)
+        project_name = "MMMid-SlowFast"
+
+        if not cfg.MODEL.FREEZE_MOD_SPECIFIC_WEIGHTS:
+            project_name += "-full"
+
+        project_name += f"-lr={cfg.SOLVER.BASE_LR}"
+        project_name += f"-{cfg.SOLVER.OPTIMIZING_METHOD}"
+
+        wandb.init(project=project_name, config=cfg)
         wandb.watch(model)
 
     # TODO: Create meters
@@ -205,7 +213,7 @@ def train_model(cfg: CfgNode) -> None:
 
         # Compute precise BN stats.
         if cfg.BN.USE_PRECISE_STATS and len(get_bn_modules(model)) > 0:
-            calculate_and_update_precise_bn(train_loader, model, cfg.BN.NUM_BATCHES_PRECISE)
+            calculate_and_update_precise_bn(train_loader, model, cfg)
 
         # Save a checkpoint.
         if cu.is_checkpoint_epoch(cfg, cur_epoch):
@@ -241,7 +249,7 @@ def load_weights(
         )
 
 
-def calculate_and_update_precise_bn(loader, model, num_iters=200):
+def calculate_and_update_precise_bn(loader, model, cfg):
     """
     Update the stats in bn layers by calculate the precise stats.
     Args:
@@ -251,16 +259,17 @@ def calculate_and_update_precise_bn(loader, model, num_iters=200):
     """
 
     def _gen_loader():
-        for inputs, _, _, _ in loader:
-            if isinstance(inputs, (list,)):
-                for i in range(len(inputs)):
-                    inputs[i] = inputs[i].cuda(non_blocking=True)
-            else:
-                inputs = inputs.cuda(non_blocking=True)
-            yield inputs
+        for batch in loader:
+            specs, frames, labels, _, meta = batch
+            if cfg.NUM_GPUS > 0:
+                specs = to_gpu(specs)
+                frames = to_gpu(frames)
+                labels = to_gpu(labels)
+
+            yield (specs, frames)
 
     # Update the bn stats.
-    update_bn_stats(model, _gen_loader(), num_iters)
+    update_bn_stats(model, _gen_loader(), cfg.BN.NUM_BATCHES_PRECISE)
 
 
 def freeze_mod_specific_weights(model: torch.nn.Module) -> None:
